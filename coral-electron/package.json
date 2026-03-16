@@ -32,21 +32,9 @@
     ],
     "extraResources": [
       {
-        "from": "../dist/win-resources/coral.exe",
-        "to": "coral.exe"
-      },
-      {
         "from": "../dist/win-resources",
         "to": ".",
-        "filter": ["*.dll"]
-      },
-      {
-        "from": "../dist/win-resources/conf",
-        "to": "conf"
-      },
-      {
-        "from": "../dist/win-resources/model",
-        "to": "model"
+        "filter": ["**/*"]
       }
     ],
     "win": {
