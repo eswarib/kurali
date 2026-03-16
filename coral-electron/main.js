@@ -25,6 +25,17 @@ function resolveIconPaths() {
       transcribeAnimationFrames.push(path.join(process.resourcesPath, 'icons', 'transcribe_icons', `transcribe_${i}.png`));
     }
     originalIconPath = path.join(process.resourcesPath, 'coral.png');
+  } else if (app.isPackaged && process.platform === 'win32') {
+    // Windows packaged: icons are in app.asar; getAppPath() returns app root (asar content)
+    const appPath = app.getAppPath();
+    for (let i = 0; i < ANIMATION_FRAME_COUNT; i++) {
+      animationFrames.push(path.join(appPath, 'icons', 'wave_icons', `wave_${i}.png`));
+      transcribeAnimationFrames.push(path.join(appPath, 'icons', 'transcribe_icons', `transcribe_${i}.png`));
+    }
+    originalIconPath = path.join(process.resourcesPath, 'coral.png');
+    if (!fs.existsSync(originalIconPath)) {
+      originalIconPath = path.join(appPath, 'coral.png');
+    }
   } else {
     const baseDir = __dirname;
     for (let i = 0; i < ANIMATION_FRAME_COUNT; i++) {
