@@ -71,4 +71,18 @@ The app is primarily developed and optimized for Linux.
 
 MIT License © 2025 [Your Name]
 
-Coral — voice transcription for Linux.
+Coral — voice transcription for Linux and Windows
+
+_______________________________________________________________________________________________________________________
+
+Coral for Ubuntu
+
+<img width="3330" height="1732" alt="CoralOnUbuntu" src="https://github.com/user-attachments/assets/4cf669c9-314a-4888-808e-463b4e392be5" />
+
+_______________________________________________________________________________________________________________________
+
+Coral for Windows
+
+<img width="1601" height="977" alt="CoralOnWindows" src="https://github.com/user-attachments/assets/7fcea4bb-cae5-434c-8548-cc58414162a1" />
+
+
