@@ -2,6 +2,21 @@ const { ipcMain } = require('electron');
 
 const { app, Tray, Menu, BrowserWindow, dialog, screen, Notification } = require('electron');
 app.commandLine.appendSwitch('no-sandbox');
+// Linux: avoid gpu-process "InitializeSandbox() called with multiple threads" (stderr WARNING).
+// GPU acceleration stays on; only the GPU helper sandbox is off (main sandbox already disabled above).
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('disable-gpu-sandbox');
+}
+// Quieter Chromium stderr for distributed builds (DBus tray, GPU sandbox, CSP INFO on stderr).
+// Local `electron .` stays verbose. Override: CORAL_VERBOSE=1 on .deb/AppImage/packaged too.
+const installedDebLayout =
+  process.platform === 'linux' &&
+  (__dirname === '/opt/coral' ||
+    __dirname.startsWith('/opt/coral/') ||
+    (typeof process.execPath === 'string' && process.execPath.startsWith('/opt/coral/')));
+if (!process.env.CORAL_VERBOSE && (app.isPackaged || process.env.APPIMAGE || installedDebLayout)) {
+  app.commandLine.appendSwitch('log-level', '2');
+}
 
 process.on('uncaughtException', (err) => {
   console.error('Uncaught exception:', err);
@@ -14,6 +29,18 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const readline = require('readline');
 
+/** Append one line to ~/.coral/logs/coral.log (same file as the C++ backend; no console noise). */
+function appendElectronLog(...args) {
+  try {
+    const logDir = path.join(os.homedir(), '.coral', 'logs');
+    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+    const logFile = path.join(logDir, 'coral.log');
+    const msg = args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+    const line = `${new Date().toISOString()} [electron] ${msg}\n`;
+    fs.appendFileSync(logFile, line, 'utf8');
+  } catch (_) { /* ignore log failures */ }
+}
+
 let originalIconPath;
 const ANIMATION_FRAME_COUNT = 8;
 let animationFrames = [];
@@ -25,6 +52,17 @@ function resolveIconPaths() {
       transcribeAnimationFrames.push(path.join(process.resourcesPath, 'icons', 'transcribe_icons', `transcribe_${i}.png`));
     }
     originalIconPath = path.join(process.resourcesPath, 'coral.png');
+  } else if (app.isPackaged && process.platform === 'win32') {
+    // Windows packaged: icons are in app.asar; getAppPath() returns app root (asar content)
+    const appPath = app.getAppPath();
+    for (let i = 0; i < ANIMATION_FRAME_COUNT; i++) {
+      animationFrames.push(path.join(appPath, 'icons', 'wave_icons', `wave_${i}.png`));
+      transcribeAnimationFrames.push(path.join(appPath, 'icons', 'transcribe_icons', `transcribe_${i}.png`));
+    }
+    originalIconPath = path.join(process.resourcesPath, 'coral.png');
+    if (!fs.existsSync(originalIconPath)) {
+      originalIconPath = path.join(appPath, 'coral.png');
+    }
   } else {
     const baseDir = __dirname;
     for (let i = 0; i < ANIMATION_FRAME_COUNT; i++) {
@@ -53,12 +91,55 @@ let currentFrame = 0;
 let stopAnimationTimer = null;
 let lastTranscriptionTimer = null;
 let currentTriggerMode = 'pushToTalk';
+/** Timestamps (ms) for each INJECT_PENDING; paired in order with INJECTION_DONE */
+const pendingInjectionStarts = [];
+/** Whisper duration (ms) per queued inject; paired with INJECTION_DONE */
+const pendingWhisperMs = [];
+/** set on TRANSCRIBING_START, cleared on INJECT_PENDING or TRANSCRIBING_DONE (discard) */
+let transcribingStartMs = null;
+
+/** From config.json recordDevTimingStats — Developer Settings, default off */
+let recordDevTimingStats = false;
+
+function readRecordDevTimingStats() {
+  try {
+    const cfgPath = path.join(os.homedir(), '.coral', 'conf', 'config.json');
+    const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+    recordDevTimingStats = cfg.recordDevTimingStats === true;
+  } catch (_) {
+    recordDevTimingStats = false;
+  }
+}
+
+/**
+ * Append one development timing row to ~/.coral/dev-timing.stats
+ * Line format: whisper_ms,inject_ms (inject_ms is -1 if transcript was not injected)
+ * whisper_ms: START → INJECT_PENDING, or START → DONE when junk-filtered
+ * inject_ms: INJECT_PENDING → INJECTION_DONE when injected
+ * Only when recordDevTimingStats is true (Developer Settings).
+ */
+function appendDevTimingStats(whisperMs, injectMs) {
+  if (!recordDevTimingStats) return;
+  try {
+    const dir = path.join(os.homedir(), '.coral');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, 'dev-timing.stats');
+    fs.appendFileSync(file, `${whisperMs},${injectMs}\n`, 'utf8');
+  } catch (e) {
+    console.warn('[Coral] dev-timing.stats append failed:', e.message);
+  }
+}
 
 function clearContinuousModeTimers() {
   if (stopAnimationTimer) { clearTimeout(stopAnimationTimer); stopAnimationTimer = null; }
   if (lastTranscriptionTimer) { clearTimeout(lastTranscriptionTimer); lastTranscriptionTimer = null; }
 }
 
+/**
+ * Shown when the C++ backend prints TRANSCRIBING_DONE (after Whisper runs and the
+ * text is queued for the injector — not after X11/uinput/typing finishes).
+ * Any delay after this toast is usually injection, not the model.
+ */
 function showTranscriptionDoneNotification() {
   if (!Notification.isSupported()) return;
   try {
@@ -69,7 +150,7 @@ function showTranscriptionDoneNotification() {
   try {
     new Notification({
       title: 'Coral',
-      body: 'Transcription finished',
+      body: 'Transcription is being done — text will appear shortly.',
       icon: originalIconPath,
     }).show();
   } catch (_) {}
@@ -174,7 +255,9 @@ function createAboutWindow() {
   aboutWindow.on('closed', () => { aboutWindow = null; });
 
   const aboutHtml = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>About Coral</title>
+<html lang="en"><head><meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'">
+<title>About Coral</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{overflow:hidden;height:100%}
@@ -347,13 +430,13 @@ function startBackend() {
         coralBinary = path.join(appImageMountPath, 'usr', 'bin', 'coral');
         const defaultConfigPath = path.join(appImageMountPath, 'usr', 'share', 'coral', 'conf', 'config.json');
         try {
-            console.log('Checking if user config directory exists:', userConfigDir);
+            appendElectronLog('Checking if user config directory exists:', userConfigDir);
             if (!fs.existsSync(path.dirname(userConfigPath))) {
                 fs.mkdirSync(path.dirname(userConfigPath), { recursive: true });
                 console.log('Created user config directory:', userConfigDir);
             }
-            console.log('Checking if user config exists:', userConfigPath);
-            console.log('Checking if default config exists:', defaultConfigPath);
+            appendElectronLog('Checking if user config exists:', userConfigPath);
+            appendElectronLog('Checking if default config exists:', defaultConfigPath);
             if (!fs.existsSync(userConfigPath) && fs.existsSync(defaultConfigPath)) {
                 fs.copyFileSync(defaultConfigPath, userConfigPath);
                 console.log('Copied default config to user config:', defaultConfigPath, '->', userConfigPath);
@@ -418,6 +501,28 @@ function startBackend() {
         backendCwd = path.dirname(coralBinary);
         backendEnv = { ...process.env };
     }
+    else if (process.platform === 'linux' && !process.env.APPIMAGE &&
+        fs.existsSync(path.join(__dirname, 'usr', 'bin', 'coral')))
+    {
+        // Linux .deb (or same layout as AppImage): bundled coral under ./usr/bin; whisper/ggml in ./usr/lib
+        const appRoot = __dirname;
+        coralBinary = path.join(appRoot, 'usr', 'bin', 'coral');
+        const defaultConfigPath = path.join(appRoot, 'usr', 'share', 'coral', 'conf', 'config.json');
+        try {
+            if (!fs.existsSync(path.dirname(userConfigPath))) fs.mkdirSync(path.dirname(userConfigPath), { recursive: true });
+            if (!fs.existsSync(userConfigPath) && fs.existsSync(defaultConfigPath)) {
+                fs.copyFileSync(defaultConfigPath, userConfigPath);
+                console.log('Copied default config (packaged Linux):', defaultConfigPath, '->', userConfigPath);
+            }
+        } catch (e) { console.error('Failed to prepare user config:', e.message); }
+        configPath = userConfigPath;
+        backendCwd = path.dirname(coralBinary);
+        const bundledLib = path.join(appRoot, 'usr', 'lib');
+        backendEnv = {
+            ...process.env,
+            LD_LIBRARY_PATH: bundledLib + (process.env.LD_LIBRARY_PATH ? (':' + process.env.LD_LIBRARY_PATH) : '')
+        };
+    }
     else
     {
         // Linux development: use ~/.coral/config.json, copy from config-linux.json on first run
@@ -469,7 +574,36 @@ function startBackend() {
                     }, 2000);
                 }, 300);
             }
+        } else if (trimmed === 'TRANSCRIBING_START') {
+            transcribingStartMs = Date.now();
+        } else if (trimmed === 'INJECT_PENDING') {
+            if (transcribingStartMs != null) {
+                const whisperMs = Date.now() - transcribingStartMs;
+                pendingWhisperMs.push(whisperMs);
+                transcribingStartMs = null;
+            } else {
+                console.warn('[Coral] INJECT_PENDING without TRANSCRIBING_START');
+                pendingWhisperMs.push(-1);
+            }
+            pendingInjectionStarts.push(Date.now());
+        } else if (trimmed === 'INJECTION_DONE') {
+            const t0 = pendingInjectionStarts.shift();
+            const whisperMs = pendingWhisperMs.shift();
+            if (t0 !== undefined && whisperMs !== undefined && whisperMs >= 0) {
+                const injectMs = Date.now() - t0;
+                appendDevTimingStats(whisperMs, injectMs);
+            } else if (t0 !== undefined) {
+                const injectMs = Date.now() - t0;
+                appendDevTimingStats(-1, injectMs);
+            } else {
+                console.warn('[Coral] INJECTION_DONE without matching INJECT_PENDING');
+            }
         } else if (trimmed === 'TRANSCRIBING_DONE') {
+            if (transcribingStartMs != null) {
+                const whisperMs = Date.now() - transcribingStartMs;
+                transcribingStartMs = null;
+                appendDevTimingStats(whisperMs, -1);
+            }
             if (currentTriggerMode === 'pushToTalk') {
                 stopTrayAnimation();
                 showTranscriptionDoneNotification();
@@ -504,19 +638,16 @@ function startBackend() {
     backendProcess.on('exit', (code, signal) => {
         console.log('Backend process exited with code:', code, 'signal:', signal);
     });
-    // Log backend process PID for confirmation
-    if (backendProcess.pid)
-    {
-        console.debug('Backend process started with PID:', backendProcess.pid);
-    }
-    else
-    {
-        console.log('Backend process failed to start.');
+    if (!backendProcess.pid) {
+      console.error('Backend process failed to start.');
     }
 }
 
 function stopBackend() {
   backendStopping = true;
+  pendingInjectionStarts.length = 0;
+  pendingWhisperMs.length = 0;
+  transcribingStartMs = null;
   clearContinuousModeTimers();
   try { stopTrayAnimation(); } catch (_) {}
   if (backendRl) {
@@ -573,7 +704,9 @@ function showWelcomeWindow() {
     if (cfg.triggerKey) triggerKeyDisplay = cfg.triggerKey;
   } catch (_) {}
 
-  const welcomeHtml = `<html><head><title>Coral</title><style>
+  const welcomeHtml = `<html><head><meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; script-src 'unsafe-inline'; connect-src https://fonts.googleapis.com https://fonts.gstatic.com; base-uri 'none'">
+<title>Coral</title><style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Inter',system-ui,sans-serif; height:100vh; overflow:hidden;
@@ -630,10 +763,12 @@ function updateWelcomeReady() {
   if (!welcomeWindow) return;
   try {
     welcomeWindow.webContents.executeJavaScript(`
-      document.getElementById('status').className = 'status ready';
-      document.getElementById('status').textContent = 'Ready!';
-      document.getElementById('tip').style.display = 'block';
-      document.getElementById('okBtn').style.display = 'inline-block';
+      (function () {
+        var s = document.getElementById('status');
+        var b = document.getElementById('okBtn');
+        if (s) { s.className = 'status ready'; s.textContent = 'Ready!'; }
+        if (b) { b.style.display = 'inline-block'; }
+      })();
     `);
     // Auto-close after 5 seconds if the user doesn't click OK
     setTimeout(() => {
@@ -660,6 +795,7 @@ if (!gotLock) {
 }
 
 app.whenReady().then(() => {
+  readRecordDevTimingStats();
   // Remove the default application menu (File/Edit/View/Window/Help)
   Menu.setApplicationMenu(null);
   // Tray icon - ensure path exists (Windows may fail silently with bad path)
@@ -705,6 +841,7 @@ ipcMain.on('show-config', () => {
 
 // Signal backend to reload config: SIGUSR1 on Linux/macOS, restart on Windows
 ipcMain.on('config-updated', () => {
+  readRecordDevTimingStats();
   if (process.platform !== 'win32' && backendProcess && backendProcess.pid && !backendProcess.killed) {
     try {
       process.kill(backendProcess.pid, 'SIGUSR1');

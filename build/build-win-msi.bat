@@ -69,6 +69,11 @@ REM ---- Step 3: Build MSI with electron-builder ----
 echo.
 echo === Step 3: Building MSI ===
 cd coral-electron
+call npm install
+if errorlevel 1 (
+    cd "%REPO_ROOT%"
+    exit /b 1
+)
 call npm run build:win:msi
 if errorlevel 1 (
     cd "%REPO_ROOT%"

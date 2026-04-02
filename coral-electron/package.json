@@ -1,6 +1,6 @@
 {
   "name": "coral-electron",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Electron UI and tray for Coral app",
   "main": "main.js",
   "scripts": {
@@ -10,7 +10,7 @@
     "build:win:nsis": "electron-builder --win nsis",
     "build:win": "electron-builder --win portable nsis"
   },
-  "author": "Eswari M",
+  "author": "Eswari Mathialagan",
   "license": "MIT",
   "dependencies": {
     "electron": "^38.0.0"
@@ -34,21 +34,9 @@
     ],
     "extraResources": [
       {
-        "from": "../dist/win-resources/coral.exe",
-        "to": "coral.exe"
-      },
-      {
         "from": "../dist/win-resources",
         "to": ".",
-        "filter": ["*.dll"]
-      },
-      {
-        "from": "../dist/win-resources/conf",
-        "to": "conf"
-      },
-      {
-        "from": "../dist/win-resources/model",
-        "to": "model"
+        "filter": ["**/*"]
       }
     ],
     "win": {
@@ -57,8 +45,7 @@
         { "target": "nsis", "arch": ["x64"] },
         { "target": "msi", "arch": ["x64"] }
       ],
-      "icon": "coral.png",
-      "noMsi": false
+      "icon": "coral.png"
     },
     "msi": {
       "oneClick": false,

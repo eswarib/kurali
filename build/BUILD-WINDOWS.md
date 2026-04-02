@@ -38,12 +38,12 @@ This will:
 After Step 1, create the native bundle (exe + DLLs + config + model):
 
 ```cmd
-build\build-windows-bundle.cmd 0.4.0 %VCPKG_ROOT%
+build\build-windows-bundle.cmd 0.5.0 %VCPKG_ROOT%
 ```
 
-Replace `0.4.0` with your app version (from `coral-electron/package.json`). This creates `coral-windows-x64-v0.4.0\` with:
+Use the version from `coral-electron/package.json` in the command above (shown here as `0.5.0`). This creates `coral-windows-x64-v0.5.0\` with:
 
-- `coral-0.4.0.exe`
+- `coral-0.5.0.exe`
 - VC++ runtime DLLs (msvcp140, vcruntime140, etc.)
 - vcpkg DLLs (portaudio, libsndfile)
 - `conf/config.json`
@@ -61,7 +61,7 @@ This runs Steps 1–2 (via `build-windows.bat`, which calls `build-windows-bundl
 
 ### Option B: Manual staging + electron-builder
 
-If you already have `coral-windows-x64-v0.4.0` from Step 2:
+If you already have `coral-windows-x64-v0.5.0` from Step 2:
 
 1. **Stage resources** into `dist/win-resources`:
 
@@ -91,7 +91,7 @@ If you already have `coral-windows-x64-v0.4.0` from Step 2:
 | Step | Command | Result |
 |------|---------|--------|
 | 1 | `build\build-windows.bat` | `build-win\...\coral.exe` |
-| 2 | `build\build-windows-bundle.cmd 0.4.0 %VCPKG_ROOT%` | `coral-windows-x64-v0.4.0\` |
+| 2 | `build\build-windows-bundle.cmd 0.5.0 %VCPKG_ROOT%` | `coral-windows-x64-v0.5.0\` |
 | 3a | `build\build-win-msi.bat` | `build/Release/*.msi` |
 | 3b | Stage to `dist/win-resources`, then `npm run build:win:*` | MSI / portable / NSIS |
 

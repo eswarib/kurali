@@ -29,11 +29,21 @@ if (process.env.APPIMAGE) {
   }
   configPath = userConfigPath;
 } else {
-  // Development: always use ~/.coral/conf/config.json; copy from platform config on first run
+  // Development / packaged Windows: use ~/.coral/conf/config.json; copy from platform config on first run
   const userConfigDir = path.join(os.homedir(), '.coral');
   configPath = path.join(userConfigDir, 'conf', 'config.json');
   const platformConfig = process.platform === 'win32' ? 'config.json' : 'config-linux.json';
-  const devDefault = path.join(__dirname, '../..', 'coral', 'conf', platformConfig);
+  let devDefault;
+  try {
+    const { app } = require('electron');
+    if (app.isPackaged && process.platform === 'win32') {
+      devDefault = path.join(process.resourcesPath, 'conf', 'config.json');
+    } else {
+      devDefault = path.join(__dirname, '../..', 'coral', 'conf', platformConfig);
+    }
+  } catch (_) {
+    devDefault = path.join(__dirname, '../..', 'coral', 'conf', platformConfig);
+  }
   try {
     if (!fs.existsSync(path.dirname(configPath))) fs.mkdirSync(path.dirname(configPath), { recursive: true });
     if (!fs.existsSync(configPath) && fs.existsSync(devDefault)) {
@@ -283,6 +293,11 @@ saveBtn.onclick = (e) => {
       newConfig[el.name] = el.value;
     }
   }
+  // Fallback: ensure triggerMode is captured (Windows form.elements can omit nested controls)
+  const triggerModeEl = configForm.querySelector('[name="triggerMode"]');
+  if (triggerModeEl && (triggerModeEl.value === 'pushToTalk' || triggerModeEl.value === 'continuous')) {
+    newConfig.triggerMode = triggerModeEl.value;
+  }
   // Validate model selection: allow known tokens or a valid file
   try {
     const modelPath = newConfig['whisperModelPath'];
@@ -296,6 +311,14 @@ saveBtn.onclick = (e) => {
       }
     }
   } catch (_) {}
+  try {
+    const dir = path.dirname(configPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  } catch (e) {
+    statusDiv.textContent = 'Failed to create config dir: ' + e.message;
+    statusDiv.className = 'error';
+    return;
+  }
   fs.writeFile(configPath, JSON.stringify(newConfig, null, 2), (err) => {
     if (err) {
       statusDiv.textContent = 'Failed to save: ' + err.message;
@@ -319,8 +342,18 @@ defaultBtn.onclick = (e) => {
       const appImageMountPath = getAppImageMountPath();
       defaultConfigPath = path.join(appImageMountPath, 'usr', 'share', 'coral', 'conf', 'config.json');
     } else {
-      const platformConfig = process.platform === 'win32' ? 'config.json' : 'config-linux.json';
-      defaultConfigPath = path.join(__dirname, '../..', 'coral', 'conf', platformConfig);
+      try {
+        const { app } = require('electron');
+        if (app.isPackaged && process.platform === 'win32') {
+          defaultConfigPath = path.join(process.resourcesPath, 'conf', 'config.json');
+        } else {
+          const platformConfig = process.platform === 'win32' ? 'config.json' : 'config-linux.json';
+          defaultConfigPath = path.join(__dirname, '../..', 'coral', 'conf', platformConfig);
+        }
+      } catch (_) {
+        const platformConfig = process.platform === 'win32' ? 'config.json' : 'config-linux.json';
+        defaultConfigPath = path.join(__dirname, '../..', 'coral', 'conf', platformConfig);
+      }
     }
     const data = fs.readFileSync(defaultConfigPath, 'utf8');
     config = JSON.parse(data);

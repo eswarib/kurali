@@ -33,7 +33,6 @@ pushd "$ELECTRON_DIR"
 npm install
 # npm run build   # Uncomment if you have a build script
 
-# Remove devDependencies to keep node_modules small
 npm prune --production
 
 popd

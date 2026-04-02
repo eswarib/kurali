@@ -13,6 +13,9 @@ public:
     static std::string removeSpecialSubstrings(const std::string& s, const std::vector<std::string>& substringsToRemove);
     static void lowercaseFirstNonSpace(std::string& s);
     static void toLower(std::string& s);
+
+    /** True if Whisper output should not be injected (empty, [tags], known junk phrases, etc.). */
+    static bool shouldDiscardTranscript(const std::string& raw);
 };
 
 #endif // TEXT_UTILS_H
