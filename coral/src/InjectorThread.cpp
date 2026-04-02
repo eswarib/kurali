@@ -31,7 +31,8 @@ void InjectorThread::run() {
         DEBUG(3, "Typing text: '" + textEvent->getText() + "'");
         TextInjector::getInstance()->typeText(textEvent->getText());
         DEBUG(3, "Finished typing text.");
-        
+        std::cout << "INJECTION_DONE" << std::endl;
+
         // Add a small delay to prevent rapid successive text injections
         // This helps prevent duplicate text issues, especially for short texts
         std::this_thread::sleep_for(std::chrono::milliseconds(100));

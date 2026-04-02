@@ -40,7 +40,7 @@ void TranscriberThread::run()
             DEBUG(3, "Transcribing audio file: [" + audioFile + "] + whisper model: [" + _config.getWhisperModelPath() + "] + language: [" + _config.getWhisperLanguage() + "]");
             std::cout << "TRANSCRIBING_START" << std::endl;
             std::string text = Transcriber::getInstance()->transcribeAudio(audioFile, _config.getWhisperModelPath(), _config.getWhisperLanguage());
-            if (audioEvent->getTriggerKey() == _config.getCmdTriggerKey()) 
+            if (audioEvent->getTriggerKey() == _config.getCmdTriggerKey())
             {
                 text = TextUtils::trim(text);
                 std::vector<std::string> specialSubstrings{"...", "?", "!"};
@@ -48,12 +48,22 @@ void TranscriberThread::run()
                 TextUtils::toLower(text);
                 text += "\n";
                 DEBUG(3, "Pushing transcribed text to textEventQueue (cmdTriggerKey)");
-            } else 
+            }
+            else
             {
                 DEBUG(3, "Pushing transcribed text to textEventQueue (triggerKey)");
             }
 
-            _textQueue.push(std::make_shared<TextEvent>(text));
+            if (TextUtils::shouldDiscardTranscript(text))
+            {
+                DEBUG(3, "Transcript discarded (junk filter), not injecting");
+            }
+            else
+            {
+                // Frontend pairs this with INJECTION_DONE to measure queue→inject latency
+                std::cout << "INJECT_PENDING" << std::endl;
+                _textQueue.push(std::make_shared<TextEvent>(text));
+            }
 
             //transcription done the text inserted in queue, 
             // notify the frontend to stop the animation

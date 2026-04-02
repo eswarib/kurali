@@ -44,6 +44,11 @@ const devForm = document.getElementById('devForm');
 const devSaveBtn = document.getElementById('devSaveBtn');
 const devStatus = document.getElementById('devStatus');
 
+/** Human-readable labels for Developer Settings (key otherwise shown as-is) */
+const DEV_FIELD_LABELS = {
+  recordDevTimingStats: 'Append timing CSV (~/.coral/dev-timing.stats)',
+};
+
 let config = {};
 
 function renderDevForm(cfg) {
@@ -55,7 +60,7 @@ function renderDevForm(cfg) {
     const field = document.createElement('div');
     field.className = 'field';
     const label = document.createElement('label');
-    label.textContent = key;
+    label.textContent = DEV_FIELD_LABELS[key] || key;
     let input;
     if (typeof value === 'boolean') {
       input = document.createElement('select');
@@ -120,6 +125,9 @@ function loadConfig() {
       }
       if (config.saveAudioToFolder === undefined) {
         config.saveAudioToFolder = '';
+      }
+      if (config.recordDevTimingStats === undefined) {
+        config.recordDevTimingStats = false;
       }
       renderDevForm(config);
       devStatus.textContent = '';

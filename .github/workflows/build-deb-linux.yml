@@ -1,0 +1,69 @@
+# Build self-contained .deb for amd64 and arm64 using build/build-deb.sh
+# arm64 uses GitHub-hosted Linux ARM runners (ubuntu-24.04-arm); public repos only on free tier.
+# See: https://docs.github.com/actions/using-github-hosted-runners/using-github-hosted-runners/about-github-hosted-runners
+
+name: build-deb-linux
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - 'build/build-deb.sh'
+      - 'coral/**'
+      - 'coral-electron/**'
+      - 'logo/**'
+      - '.github/workflows/build-deb-linux.yml'
+  pull_request:
+    paths:
+      - 'build/build-deb.sh'
+      - 'coral/**'
+      - 'coral-electron/**'
+      - 'logo/**'
+      - '.github/workflows/build-deb-linux.yml'
+
+jobs:
+  deb:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure whisper.cpp
+        run: |
+          if [ ! -f whisper.cpp/CMakeLists.txt ]; then
+            git clone --depth 1 https://github.com/ggerganov/whisper.cpp.git whisper.cpp
+          fi
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake pkg-config nodejs npm wget \
+            libx11-dev libxtst-dev libxinerama-dev libxkbcommon-dev \
+            portaudio19-dev libsndfile1-dev libportal-dev libglib2.0-dev \
+            libatspi2.0-dev fakeroot binutils
+
+      - name: Build .deb (${{ matrix.arch }})
+        env:
+          CORAL_DEB_SKIP_APT: "1"
+        run: |
+          chmod +x build/build-deb.sh
+          build/build-deb.sh "${{ matrix.arch }}"
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coral-deb-${{ matrix.arch }}
+          path: Coral-*_${{ matrix.arch }}.deb
+          if-no-files-found: error

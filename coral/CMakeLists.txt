@@ -280,7 +280,7 @@ endif()
 # CPack (Windows NSIS) – safe to include always; only generates when packaging
 set(CPACK_PACKAGE_NAME "Coral")
 set(CPACK_PACKAGE_VENDOR "Coral Project")
-set(CPACK_PACKAGE_VERSION "0.2.0")
+set(CPACK_PACKAGE_VERSION "0.5.0")
 set(CPACK_PACKAGE_CONTACT "")
 if(WIN32)
 	set(CPACK_GENERATOR NSIS)

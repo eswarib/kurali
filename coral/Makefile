@@ -8,7 +8,12 @@ TEST_BINS := $(patsubst $(TEST_DIR)/%.cpp, $(BIN_DIR)/%, $(TEST_SRCS))
 # Build all tests
 .PHONY: tests
 
-alltests: backend $(TEST_BINS)
+alltests: backend $(TEST_BINS) $(BIN_DIR)/TestTextUtils
+
+# Standalone (links only TextUtils.o; avoids heavy injector deps)
+$(BIN_DIR)/TestTextUtils: $(TEST_DIR)/TestTextUtils.cpp $(BIN_DIR)/TextUtils.o
+	@mkdir -p $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(BIN_DIR)/TextUtils.o
 
 # Link libraries and objects for tests
 # Prefer vendored static libxdo if available; otherwise fall back to system -lxdo
@@ -64,6 +69,8 @@ $(BIN_DIR)/%: $(TEST_DIR)/%.cpp $(TEST_LINK_OBJS)
 .PHONY: runtests
 runtests: alltests
 	@for test in $(TEST_BINS); do echo "Running $$test"; $$test; done
+	@echo "Running $(BIN_DIR)/TestTextUtils"
+	@$(BIN_DIR)/TestTextUtils
 
 # Add TextInjector.cpp and Recorder.cpp explicitly if not already included
 SRCS += $(SRC_DIR)/TextInjector.cpp

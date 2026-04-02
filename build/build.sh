@@ -179,7 +179,7 @@ pushd "$ELECTRON_DIR"
 npm install
 # npm run build   # Uncomment if you have a build script
 
-# Remove devDependencies to keep node_modules small
+# electron is a dependency so prune keeps node_modules/electron for AppRun.
 npm prune --production
 
 popd
@@ -234,6 +234,7 @@ fi
 
 # Copy icons, desktop file, and AppRun
 cp "$SCRIPTS_DIR/coral.desktop" "$APPDIR/"
+mkdir -p "$APPDIR/node_modules/electron/dist/resources"
 cp "../logo/coral.png" "$APPDIR/node_modules/electron/dist/resources/coral.png"
 cp "../logo/coral.png" "$APPDIR/usr/share/coral/coral.png"
 cp "../logo/coral.png" "$APPDIR/coral.png"
@@ -242,6 +243,7 @@ mkdir -p "$APPDIR/usr/share/icons/hicolor/256x256/apps/"
 cp "../logo/coral.png" "$APPDIR/usr/share/coral/coral.png"
 
 cp -r "$ELECTRON_DIR/icons" "$APPDIR/"
+mkdir -p "$APPDIR/node_modules/electron/dist/resources"
 cp -r "$ELECTRON_DIR/icons" "$APPDIR/node_modules/electron/dist/resources/"
 cp -r "$ELECTRON_DIR/icons" "$APPDIR/usr/share/coral/"
 cp -r "$ELECTRON_DIR/icons" "$APPDIR/usr/share/coral/"

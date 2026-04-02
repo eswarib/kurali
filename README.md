@@ -1,16 +1,17 @@
-🎙️ Coral — Linux Transcription App
+🎙️ Coral — Desktop Transcription App (Linux & Windows)
 
-Coral is a speech-to-text transcription app for Linux, powered by the Whisper model.
+Coral is a speech-to-text transcription app for **Linux** and **Windows**, powered by the Whisper model.
 It runs entirely on your device.
 
 🧠 Overview
 
-🐧 Linux-first design (AppImage available)
+🐧 **Linux:** **AppImage** and **.deb** builds
+
+🪟 **Windows:** **MSI** installer
 
 ⚙️ Electron frontend + C++ backend
 
-🧩 Uses whisper.cpp
- for local model inference
+🧩 Uses whisper.cpp for local model inference
 
 🎤 Real-time microphone transcription
 
@@ -18,57 +19,64 @@ It runs entirely on your device.
 
 🚀 Build Instructions
 
-To build an AppImage manually:
+**AppImage** (same layout as release artifacts):
 
+```bash
 cd coralapp/build
 bash build.sh
+```
 
+**Debian package** (install with `apt` / `dpkg`, no FUSE; output at repo root):
 
-Or simply download the prebuilt AppImage from the latest release:
+```bash
+cd coralapp/build
+bash build-deb.sh amd64    # Intel/AMD 64-bit (default arch if omitted)
+# bash build-deb.sh arm64  # ARM64 — run on aarch64, or CI; use CORAL_DEB_FRESH_NPM=1 if switching arch after a prior npm install
+sudo apt install ./Coral-*_amd64.deb   # or *_arm64.deb
+```
 
-👉 Download Coral AppImage
-[Releases](https://github.com/eswarib/coralapp/releases/download/coral-0.2.0/CoralApp-0.2.0-x86_64.AppImage)
+Filenames: `Coral-<version>_amd64.deb` / `Coral-<version>_arm64.deb` (version from `coral-electron/package.json`).
+
+**Prebuilt installers** from the latest release ([all assets](https://github.com/eswarib/coralapp/releases)):
+
+| Platform | Download |
+|----------|-----------|
+| Linux (AppImage) | [CoralApp-0.5.0-x86_64.AppImage](https://github.com/eswarib/coralapp/releases/download/coral-0.5.0/CoralApp-0.5.0-x86_64.AppImage) |
+| Windows (MSI, x64) | [Coral-0.5.0.msi](https://github.com/eswarib/coralapp/releases/download/coral-0.5.0/Coral-0.5.0.msi) |
+
+Check the [releases](https://github.com/eswarib/coralapp/releases) page for newer builds. Attach a `.deb` to a release if you publish one, or build it locally with `build-deb.sh`.
 
 🧰 Tech Stack
 
-Layer	Technology
-Frontend	Electron
-Backend	C++
-Model Inference	whisper.cpp
+| Layer | Technology |
+|-------|------------|
+| Frontend | Electron |
+| Backend | C++ |
+| Model inference | whisper.cpp |
 
 🎧 How to Use
 
-Launch Coral
-Press and hold the hotkey (default: Alt + Z)
-Speak — Coral will transcribe your speech once you release the hotkey
-The transcribed text is automatically inserted into the currently active text field or editor
+1. Launch Coral.
+2. Press and hold the hotkey (default: Alt + Z) unless you changed it in Settings.
+3. Speak — Coral transcribes when you release the hotkey (behavior depends on trigger mode in config).
+4. Text is inserted into the focused window.
 
 ⚙️ Configuration
-You can customize settings.
 
-Model Path:
-Download any Whisper model
- compatible with whisper.cpp (e.g., base.en, small, medium),
-and set its path in the configuration. Coral will automatically detect and load it.
+You can customize settings in the app.
 
-Hotkey:
-The default hotkey is Alt + Z, but you can change it to any preferred combination.
+**Model path:** Download any Whisper model compatible with whisper.cpp (e.g. base.en, small, medium), set its path in configuration — Coral resolves common locations.
 
-⚠️ Limitations
-
-A Windows .exe build exists but is not fully tested.
-The app is primarily developed and optimized for Linux.
+**Hotkey:** Defaults vary by shipped config; open Settings to see or change your trigger key and mode.
 
 🙏 Acknowledgements
 
-💡 ggerganov
- — for creating whisper.cpp, which powers Coral’s transcription engine
+💡 **ggerganov** — for creating [whisper.cpp](https://github.com/ggerganov/whisper.cpp), which powers Coral’s transcription engine.
 
-🎨 [voibe](getvoibe.com)
- — for inspiring the concept and workflow
+🎨 **[Voibe](https://getvoibe.com)** — for inspiring the concept and workflow.
 
 📄 License
 
-MIT License © 2025 [Your Name]
+MIT License © 2026 Eswari Mathialagan
 
-Coral — voice transcription for Linux.
+Coral — voice transcription for Linux and Windows.
