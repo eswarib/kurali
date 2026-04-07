@@ -1,6 +1,6 @@
 {
   "name": "coral-electron",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Electron UI and tray for Coral app",
   "main": "main.js",
   "scripts": {

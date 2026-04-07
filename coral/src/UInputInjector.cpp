@@ -12,6 +12,17 @@
 #include <thread>
 #include <chrono>
 
+// Tunables (uinput is key-by-key; we batch SYN_REPORT per character to cut syscalls.)
+//
+// kInterCharacterDelay: pause after each character’s full key sequence. If the focused
+// app drops or reorders keys (VM, remote desktop, slow editor), increase this (try
+// 3000–8000 µs). Decrease only after testing. Monitor throughput with debugLevel >= 3
+// in ~/.coral/conf/config.json ("debugLevel": 3) — see coral.log for lines like:
+//   UInputInjector: typed 1000 chars in 2500 ms (~2500 µs/char)
+namespace {
+constexpr std::chrono::microseconds kInterCharacterDelay{1500};
+} // namespace
+
 // ── Character → (keycode, needsShift) mapping ──────────────────────────────
 
 struct KeyMapping
@@ -230,25 +241,21 @@ bool UInputInjector::typeChar(char c)
     const auto& [code, shift] = it->second;
     bool ok = true;
 
+    // One SYN_REPORT after the full press/release sequence for this character (fewer
+    // writes than syncing after each EV_KEY; same semantics for userspace input stack).
     if (shift)
     {
         ok &= sendKeyEvent(KEY_LEFTSHIFT, true);
-        ok &= sendSync();
     }
-
     ok &= sendKeyEvent(code, true);
-    ok &= sendSync();
     ok &= sendKeyEvent(code, false);
-    ok &= sendSync();
-
     if (shift)
     {
         ok &= sendKeyEvent(KEY_LEFTSHIFT, false);
-        ok &= sendSync();
     }
+    ok &= sendSync();
 
-    // Small delay between characters to avoid overwhelming the input subsystem
-    std::this_thread::sleep_for(std::chrono::microseconds(5000));
+    std::this_thread::sleep_for(kInterCharacterDelay);
 
     return ok;
 }
@@ -263,11 +270,26 @@ bool UInputInjector::typeText(const std::string& text)
         return false;
     }
 
+    const auto t0 = std::chrono::steady_clock::now();
     bool allOk = true;
+    size_t typed = 0;
     for (char c : text)
     {
         if (!typeChar(c)) allOk = false;
+        ++typed;
     }
+    const auto elapsed = std::chrono::steady_clock::now() - t0;
+    const long long msTotal = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+    const long long usTotal = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
+
+    if (typed >= 100)
+    {
+        const long long usPerChar = typed ? (usTotal / static_cast<long long>(typed)) : 0;
+        DEBUG(1, "UInputInjector: typed " + std::to_string(typed) + " chars in " +
+                     std::to_string(msTotal) + " ms (~" + std::to_string(usPerChar) +
+                     " µs/char); if keys drop, raise kInterCharacterDelay in UInputInjector.cpp");
+    }
+
     return allOk;
 }
 

@@ -3,6 +3,7 @@
 #include "../src/Config.h"
 #include "../src/concurrentQueue.h"
 #include <cassert>
+#include <chrono>
 #include <iostream>
 #include <memory>
 
@@ -18,7 +19,8 @@ void testInjectorThread() {
     
     injector.start();
 
-    textQueue.push(std::make_shared<TextEvent>("hello world"));
+    textQueue.push(
+        std::make_shared<TextEvent>("hello world", std::chrono::steady_clock::now()));
 
     // Allow time for the thread to process the event.
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
