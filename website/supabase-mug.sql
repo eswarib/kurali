@@ -79,8 +79,11 @@ create policy "Anyone can read mug_state"
 -- Realtime: other browsers see the same mug update live
 alter table public.mug_state replica identity full;
 
--- Realtime (so all visitors see the same mug): Dashboard → Database → Publications →
--- supabase_realtime → toggle ON for table mug_state.
+-- Add this table to the Realtime publication (Publications UI will list 1 table for supabase_realtime).
+-- If you re-run the whole script and this errors with "already a member", ignore that line.
+alter publication supabase_realtime add table public.mug_state;
+
+-- (Alternative) UI: Database → Publications → supabase_realtime → add table mug_state.
 
 -- ---------------------------------------------------------------------------
 -- Email when someone pours past 30% on the shared mug
