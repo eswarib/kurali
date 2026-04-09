@@ -157,18 +157,21 @@
     .mug-svg {
       width: 100%;
       height: auto;
-      max-height: min(70vh, 520px);
-      filter: drop-shadow(0 12px 24px rgba(13, 148, 136, 0.15));
+      max-height: min(72vh, 480px);
+      filter: drop-shadow(0 14px 28px rgba(19, 78, 74, 0.12)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.06));
     }
 
     #coffee-liquid {
       transition: y 0.45s cubic-bezier(0.33, 1, 0.68, 1), height 0.45s cubic-bezier(0.33, 1, 0.68, 1);
     }
 
+    .steam path,
     .steam line {
-      stroke: rgba(20, 184, 166, 0.45);
-      stroke-width: 3;
+      fill: none;
+      stroke: #b0b0b0;
+      stroke-width: 4;
       stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     .steam .wisp {
@@ -291,56 +294,50 @@
     </p>
 
     <div class="mug-stage">
-      <svg class="mug-svg" viewBox="0 0 400 480" role="img" aria-labelledby="mug-title">
+      <!-- Hot-beverage style: tapered cup, rim ring, no stroke through the liquid -->
+      <svg class="mug-svg" viewBox="0 0 400 420" role="img" aria-labelledby="mug-title">
         <title id="mug-title">Coffee mug; fill level increases when you click Buy me a coffee</title>
         <defs>
           <linearGradient id="coffeeGrad" x1="0%" y1="100%" x2="0%" y2="0%">
-            <stop offset="0%" stop-color="#2d1810"/>
-            <stop offset="50%" stop-color="#4a2c1a"/>
-            <stop offset="100%" stop-color="#6b4423"/>
-          </linearGradient>
-          <linearGradient id="rimGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style="stop-color: #fefefe"/>
-            <stop offset="100%" style="stop-color: #e8e4df"/>
+            <stop offset="0%" stop-color="#2c1810"/>
+            <stop offset="35%" stop-color="#4e342e"/>
+            <stop offset="85%" stop-color="#6d4c41"/>
+            <stop offset="100%" stop-color="#8d6e63"/>
           </linearGradient>
           <clipPath id="inner-mug-clip">
-            <rect id="inner-rect-ref" x="103" y="108" width="169" height="278" rx="6" ry="6"/>
+            <rect id="inner-rect-ref" x="136" y="193" width="128" height="113"/>
           </clipPath>
         </defs>
 
-        <!-- Handle (back) -->
-        <path fill="none" stroke="#1a4540" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"
-          d="M 278 125 C 348 125 348 288 278 294"/>
+        <!-- Handle (behind cup) -->
+        <path fill="none" stroke="#2d2d2d" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"
+          d="M 286 199 C 342 199 348 278 298 286"/>
 
-        <!-- Liquid (visible through hole in mug wall) -->
+        <!-- Coffee (no fill until pour — keeps chamber visually transparent) -->
         <g clip-path="url(#inner-mug-clip)">
-          <rect id="coffee-liquid" x="103" y="386" width="169" height="0" fill="url(#coffeeGrad)"/>
+          <rect id="coffee-liquid" x="136" y="306" width="128" height="0" fill="none"/>
         </g>
 
-        <!-- Mug wall (even-odd: outer shape minus interior hole; stroke is outer silhouette only) -->
-        <path fill="url(#rimGrad)" fill-rule="evenodd"
-          d="M 95 105 L 95 360 Q 97 398 187.5 398 Q 278 398 280 360 L 280 105 L 95 105 Z
-             M 103 108 L 272 108 L 272 386 L 103 386 Z"/>
-        <path fill="none" stroke="#1a4540" stroke-width="3.5" stroke-linejoin="round"
-          d="M 95 105 L 95 360 Q 97 398 187.5 398 Q 278 398 280 360 L 280 105 L 95 105 Z"/>
-        <!-- Rim ellipse -->
-        <ellipse cx="187.5" cy="105" rx="93" ry="19" fill="#f0ebe5" stroke="#1a4540" stroke-width="3.5"/>
+        <!-- Cup walls: stroke only (interior stays transparent) -->
+        <path fill="none" stroke="#2d2d2d" stroke-width="4" stroke-linejoin="round"
+          d="M 114 187 L 126 286 Q 200 322 274 286 L 286 187"/>
 
-        <!-- Steam (above rim) -->
-        <g class="steam" id="steam-group" transform="translate(0 -5)">
-          <g class="wisp" transform="translate(128 78)">
-            <line x1="0" y1="0" x2="6" y2="-20"/>
+        <!-- Rim ring only (no solid fill) so the opening stays transparent -->
+        <ellipse cx="200" cy="166" rx="88" ry="22" fill="none" stroke="#e8e8e8" stroke-width="14" stroke-linejoin="round"/>
+        <ellipse cx="200" cy="166" rx="88" ry="22" fill="none" stroke="#2d2d2d" stroke-width="4" stroke-linejoin="round"/>
+
+        <!-- Steam -->
+        <g class="steam" id="steam-group">
+          <g class="wisp" transform="translate(172 102)">
+            <path fill="none" d="M 0 0 C 8 -10 2 -22 -4 -32"/>
           </g>
-          <g class="wisp" transform="translate(187 74)">
-            <line x1="0" y1="0" x2="-5" y2="-24"/>
+          <g class="wisp" transform="translate(200 95)">
+            <path fill="none" d="M 0 0 C -10 -8 -4 -24 2 -36"/>
           </g>
-          <g class="wisp" transform="translate(245 78)">
-            <line x1="0" y1="0" x2="4" y2="-22"/>
+          <g class="wisp" transform="translate(228 102)">
+            <path fill="none" d="M 0 0 C 6 -12 8 -24 2 -34"/>
           </g>
         </g>
-
-        <!-- Inner rim shadow hint -->
-        <ellipse cx="187.5" cy="108" rx="80" ry="12" fill="none" stroke="rgba(26,69,64,0.12)" stroke-width="2"/>
       </svg>
     </div>
 
@@ -364,8 +361,8 @@
   const CORAL_MUG_SUPABASE_URL = 'https://ruwdjzdiqfpyejywmjvw.supabase.co';
   const CORAL_MUG_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1d2RqemRpcWZweWVqeXdtanZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzAyNzMsImV4cCI6MjA5MTMwNjI3M30.2euyDg2Kf1t-MGGejE7GXkT3YReiLFvzGCnw9wSkRPk';
 
-  const INNER_TOP = 108;
-  const INNER_BOTTOM = 386;
+  const INNER_TOP = 193;
+  const INNER_BOTTOM = 306;
   const INNER_H = INNER_BOTTOM - INNER_TOP;
   const STEP = 1;
 
@@ -388,8 +385,13 @@
     const h = (clamped / 100) * INNER_H;
     liquid.setAttribute('y', INNER_BOTTOM - h);
     liquid.setAttribute('height', h);
-    if (clamped > 0) steam.classList.add('mug-hot');
-    else steam.classList.remove('mug-hot');
+    if (clamped > 0) {
+      liquid.setAttribute('fill', 'url(#coffeeGrad)');
+      steam.classList.add('mug-hot');
+    } else {
+      liquid.setAttribute('fill', 'none');
+      steam.classList.remove('mug-hot');
+    }
   }
 
   function updateHint() {
