@@ -1,0 +1,11 @@
+
+I want to do this way
+1. voice should be recorded only when a key is pressed, for now keep 'Fn' key as the trigger
+2. the recorded voice should be put a event queue
+3. steps 2 and 3 can be handled by a thread
+4. keep one even queue for now
+5. a second thread should take from the queue, transcribe using whisper and put the text in a second queue
+6. a third thread should take the events from the 2nd queue and injects into the text box on the active window
+7. the binary will be always running in the background. The recording should be done only when the 'Fn' key is pressed
+8. recording should be done till the key is released, but if the audio is silent for long periods, for now 5min, recording should stop. make this configurable
+9. the 

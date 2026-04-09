@@ -69,6 +69,10 @@ You can customize settings in the app.
 
 **Hotkey:** Defaults vary by shipped config; open Settings to see or change your trigger key and mode.
 
+🌐 Website (GitHub Pages)
+
+Static site files are in **`website/`** (`index.html`, `coffee.html`, etc.). Deployments use **GitHub Actions** (`.github/workflows/github-pages.yml`). In the repository **Settings → Pages**, set the **source** to **GitHub Actions** if it is not already (the classic “Deploy from branch” option only publishes **`/docs`** or repo root, not `/website`).
+
 🙏 Acknowledgements
 
 💡 **ggerganov** — for creating [whisper.cpp](https://github.com/ggerganov/whisper.cpp), which powers Coral’s transcription engine.

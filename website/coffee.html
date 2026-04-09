@@ -208,6 +208,29 @@
       line-height: 1.5;
     }
 
+    .demo-banner {
+      max-width: 34rem;
+      margin: 0 auto 1rem;
+      padding: 0.65rem 1rem;
+      font-size: 0.88rem;
+      color: var(--secondary);
+      background: rgba(236, 253, 245, 0.95);
+      border: 1px solid rgba(13, 148, 136, 0.25);
+      border-radius: 0.5rem;
+      line-height: 1.45;
+    }
+
+    .mug-stats {
+      margin: 0 auto 0.5rem;
+      font-size: 1.05rem;
+      color: var(--text);
+    }
+
+    .mug-stats .full-cups-num {
+      font-size: 1.35rem;
+      color: var(--secondary);
+    }
+
     .actions {
       display: flex;
       flex-direction: column;
@@ -259,7 +282,13 @@
 
   <main>
     <h1>Thanks for cheering on Coral</h1>
-    <p class="lead">Each click on the button pours a little more into the mug.</p>
+     
+    <p class="lead" id="lead-text">Each click pours 1% into a mug shared by everyone on this page. When it hits 100%, it empties and the full-mug counter goes up.</p>
+    <p class="demo-banner" id="demo-banner" hidden></p>
+    <p class="mug-stats" id="mug-stats">
+      <span class="full-cups-num" id="full-cups-count">0</span> full mugs
+      <span style="color: var(--muted); font-size: 0.92rem;"> (everyone, all time)</span>
+    </p>
 
     <div class="mug-stage">
       <svg class="mug-svg" viewBox="0 0 400 480" role="img" aria-labelledby="mug-title">
@@ -327,44 +356,163 @@
     </p>
   </footer>
 
-  <script>
-(function () {
-  var INNER_TOP = 108;
-  var INNER_BOTTOM = 386;
-  var INNER_H = INNER_BOTTOM - INNER_TOP;
-  var STEP = 1;
-  var pct = 0;
-  var liquid = document.getElementById('coffee-liquid');
-  var btn = document.getElementById('buy-coffee-btn');
-  var hint = document.getElementById('fill-hint');
-  var steam = document.getElementById('steam-group');
+  <script type="module">
+  /* Vendored bundle (~260KB). Refresh: bash website/vendor/rebundle.sh */
+  import { createClient } from './vendor/supabase-js.mjs';
 
-  function setFill(percent) {
-    var p = Math.min(100, Math.max(0, percent));
-    var h = (p / 100) * INNER_H;
+  /** Paste from Supabase → Settings → API (anon key is safe with RLS below). Leave empty to use offline demo only. */
+  const CORAL_MUG_SUPABASE_URL = '';
+  const CORAL_MUG_SUPABASE_ANON_KEY = '';
+
+  const INNER_TOP = 108;
+  const INNER_BOTTOM = 386;
+  const INNER_H = INNER_BOTTOM - INNER_TOP;
+  const STEP = 1;
+
+  const liquid = document.getElementById('coffee-liquid');
+  const btn = document.getElementById('buy-coffee-btn');
+  const hint = document.getElementById('fill-hint');
+  const steam = document.getElementById('steam-group');
+  const fullCupsEl = document.getElementById('full-cups-count');
+  const demoBanner = document.getElementById('demo-banner');
+  const leadText = document.getElementById('lead-text');
+
+  let fillPct = 0;
+  let fullCups = 0;
+  let mode = 'demo';
+  let client = null;
+  let busy = false;
+
+  function drawMug(p) {
+    const clamped = Math.min(99, Math.max(0, p));
+    const h = (clamped / 100) * INNER_H;
     liquid.setAttribute('y', INNER_BOTTOM - h);
     liquid.setAttribute('height', h);
-    if (p > 0) {
-      steam.classList.add('mug-hot');
-    } else {
-      steam.classList.remove('mug-hot');
-    }
-    if (p >= 100) {
-      hint.textContent = 'Full mug! You’re wonderful. Thanks for playing along. 💛';
+    if (clamped > 0) steam.classList.add('mug-hot');
+    else steam.classList.remove('mug-hot');
+  }
+
+  function updateHint() {
+    const p = fillPct;
+    if (p === 0 && fullCups > 0) {
+      hint.textContent = 'The shared mug is empty again — ' + fullCups + ' full mug' + (fullCups === 1 ? '' : 's') + ' and counting.';
     } else if (p > 0) {
-      hint.textContent = 'Keep going — the mug is ' + Math.round(p) + '% full.';
+      hint.textContent = 'Shared mug is ' + p + '% full. Pour adds 1% for everyone.';
     } else {
-      hint.textContent = 'Click the button to pour.';
+      hint.textContent = 'Click to pour into the shared mug.';
     }
   }
 
-  btn.addEventListener('click', function () {
-    pct = Math.min(100, pct + STEP);
-    setFill(pct);
+  function applyState(fill, cups) {
+    fillPct = fill;
+    fullCups = cups;
+    drawMug(fillPct);
+    fullCupsEl.textContent = String(fullCups);
+    updateHint();
+  }
+
+  function showDemo(msg) {
+    mode = 'demo';
+    demoBanner.hidden = false;
+    demoBanner.textContent = msg;
+    leadText.textContent = 'Offline demo: your pours stay in this browser only. For a real shared mug, add Supabase URL and anon key in the script on this page (see website/supabase-mug.sql).';
+  }
+
+  function demoPour() {
+    const before = fillPct;
+    const crossed30 = before < 30 && before + STEP >= 30;
+    fillPct += STEP;
+    let crossedFull = false;
+    while (fillPct >= 100) {
+      fillPct -= 100;
+      fullCups += 1;
+      crossedFull = true;
+    }
+    applyState(fillPct, fullCups);
+    if (crossedFull) {
+      hint.textContent = 'Full mug! It empties and the counter just went up. 💛';
+    }
+    if (crossed30) {
+      console.info('Coral mug: shared pour crossed 30% (for email, wire a Supabase Database Webhook — see website/supabase-mug.sql).');
+    }
+  }
+
+  async function livePour() {
+    if (busy) return;
+    busy = true;
+    btn.disabled = true;
+    try {
+      const { data, error } = await client.rpc('pour_coffee', { step: STEP });
+      if (error) throw error;
+      const row = data;
+      if (row && typeof row.fill_pct === 'number' && typeof row.full_cups === 'number') {
+        applyState(row.fill_pct, row.full_cups);
+        if (row.crossed_30) {
+          console.info('Mug crossed 30% — if email is wired (Supabase webhook), a message can go out.');
+        }
+      }
+    } catch (e) {
+      hint.textContent = 'Could not pour (network or server). Try again.';
+      console.error(e);
+    } finally {
+      busy = false;
+      btn.disabled = false;
+    }
+  }
+
+  btn.addEventListener('click', () => {
+    if (mode === 'live') livePour();
+    else demoPour();
   });
 
-  setFill(0);
-})();
+  async function init() {
+    const configured = Boolean(CORAL_MUG_SUPABASE_URL && CORAL_MUG_SUPABASE_ANON_KEY);
+
+    if (!configured) {
+      showDemo('');
+      applyState(0, 0);
+      return;
+    }
+
+    client = createClient(CORAL_MUG_SUPABASE_URL, CORAL_MUG_SUPABASE_ANON_KEY);
+
+    const { data, error } = await client
+      .from('mug_state')
+      .select('fill_pct, full_cups')
+      .eq('id', 1)
+      .maybeSingle();
+
+    if (error) {
+      console.error(error);
+      showDemo('Could not reach Supabase — playing offline in this tab.');
+      applyState(0, 0);
+      return;
+    }
+
+    mode = 'live';
+    demoBanner.hidden = true;
+    if (data && typeof data.fill_pct === 'number') {
+      applyState(data.fill_pct, Number(data.full_cups));
+    } else {
+      applyState(0, 0);
+    }
+
+    client
+      .channel('mug_state_changes')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'mug_state', filter: 'id=eq.1' },
+        (payload) => {
+          const row = payload.new;
+          if (row && typeof row.fill_pct === 'number' && typeof row.full_cups !== 'undefined') {
+            applyState(row.fill_pct, Number(row.full_cups));
+          }
+        }
+      )
+      .subscribe();
+  }
+
+  init();
   </script>
 
 </body>
