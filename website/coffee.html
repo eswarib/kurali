@@ -439,22 +439,36 @@
     }
   }
 
+  async function callPourRpc() {
+    const { data, error } = await client.rpc('pour_coffee', { step: STEP });
+    if (error) throw error;
+    return data;
+  }
+
+  function normalizePourRow(data) {
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || typeof row !== 'object') return null;
+    return row;
+  }
+
   async function livePour() {
     if (busy) return;
     busy = true;
     btn.disabled = true;
     try {
-      const { data, error } = await client.rpc('pour_coffee', { step: STEP });
-      if (error) throw error;
-      const row = data;
+      const data = await callPourRpc();
+      const row = normalizePourRow(data);
       if (row && typeof row.fill_pct === 'number' && typeof row.full_cups === 'number') {
         applyState(row.fill_pct, row.full_cups);
         if (row.crossed_30) {
           console.info('Mug crossed 30% — if email is wired (Supabase webhook), a message can go out.');
         }
+      } else {
+        throw new Error('Unexpected RPC response shape from pour_coffee');
       }
     } catch (e) {
-      hint.textContent = 'Could not pour (network or server). Try again.';
+      const details = (e && typeof e.message === 'string' && e.message.trim()) ? ': ' + e.message : '.';
+      hint.textContent = 'Could not pour (network or server)' + details;
       console.error(e);
     } finally {
       busy = false;

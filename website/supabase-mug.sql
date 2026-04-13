@@ -79,9 +79,19 @@ create policy "Anyone can read mug_state"
 -- Realtime: other browsers see the same mug update live
 alter table public.mug_state replica identity full;
 
--- Add this table to the Realtime publication (Publications UI will list 1 table for supabase_realtime).
--- If you re-run the whole script and this errors with "already a member", ignore that line.
-alter publication supabase_realtime add table public.mug_state;
+-- Add this table to the Realtime publication (safe to re-run).
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'mug_state'
+  ) then
+    alter publication supabase_realtime add table public.mug_state;
+  end if;
+end $$;
 
 -- (Alternative) UI: Database → Publications → supabase_realtime → add table mug_state.
 
@@ -93,4 +103,28 @@ alter publication supabase_realtime add table public.mug_state;
 --   Use old_record.fill_pct < 30 AND record.fill_pct >= 30
 -- Point the webhook at Make / Zapier / n8n → Gmail (or Resend, etc.).
 -- You cannot send email safely from static HTML alone; the webhook keeps secrets server-side.
+-- ---------------------------------------------------------------------------
+
+-- If the browser error says "Could not find the function public.pour_coffee(...) in the schema cache":
+-- 1. Run this entire file in the SAME Supabase project as CORAL_MUG_SUPABASE_URL in coffee.html.
+-- 2. Then run the NOTIFY below (or Dashboard → Settings → API → Reload schema).
+-- 3. Confirm the function exists:
+--    select proname, pg_get_function_identity_arguments(oid)
+--    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+--    where n.nspname = 'public' and proname = 'pour_coffee';
+
+notify pgrst, 'reload schema';
+
+-- ---------------------------------------------------------------------------
+-- Troubleshooting: error "column \"infinity\" does not exist" when pouring
+-- pour_coffee updates public.mug_state. If you added a TRIGGER on that table,
+-- fix the trigger function: Postgres may parse bare `infinity` as a column name.
+-- Use a typed literal instead, e.g. 'infinity'::timestamptz, or fix the typo.
+--
+-- List triggers on mug_state:
+--   select tgname, pg_get_triggerdef(t.oid, true) as definition
+--   from pg_trigger t
+--   join pg_class c on c.oid = t.tgrelid
+--   join pg_namespace n on n.oid = c.relnamespace
+--   where n.nspname = 'public' and c.relname = 'mug_state' and not t.tgisinternal;
 -- ---------------------------------------------------------------------------
