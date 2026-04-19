@@ -1,10 +1,10 @@
-#include "../src/Config.h"
+#include "../../src/config/Config.h"
 #include <cassert>
 #include <iostream>
 #include <fstream>
 
 void testConfigLoad() {
-    Config config("test_config.json");
+    Config config("test/config/test_config.json");
     assert(config.getSilenceTimeoutSeconds() == 300);
     assert(config.getAudioSampleRate() == 16000);
     assert(config.getAudioChannels() == 1);

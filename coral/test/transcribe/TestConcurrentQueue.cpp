@@ -1,4 +1,4 @@
-#include "../src/concurrentQueue.h"
+#include "../../src/transcribe/concurrentQueue.h"
 #include <cassert>
 #include <iostream>
 #include <thread>

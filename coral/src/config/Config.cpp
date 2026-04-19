@@ -90,7 +90,7 @@ void Config::loadFromFile()
     INFO("triggerMode:  [" + triggerMode + "]");
     doubleTapWindowMs = static_cast<uint32_t>(j.value("doubleTapWindowMs", 300));
     INFO("doubleTapWindowMs:  [" + std::to_string(doubleTapWindowMs) + "]");
-    recordWindowSeconds = j.value("recordWindowSeconds", 60);
+    recordWindowSeconds = j.value("recordWindowSeconds", 15);
     INFO("recordWindowSeconds:  [" + std::to_string(recordWindowSeconds) + "]");
     saveAudioToFolder = j.value("saveAudioToFolder", std::string());
     saveAudioToFolder = Utils::expandTilde(saveAudioToFolder);
@@ -109,66 +109,80 @@ std::string Config::getWhisperModelPath() const {
         configuredPath = whisperModelPath;
     }
 
-    // 1) Config path (with tilde expansion)
+    // 1) Config path used as-is (absolute / relative / tilde-expanded).
     std::string expandedModelPath = Utils::expandTilde(configuredPath);
     if (!expandedModelPath.empty() && fs::exists(expandedModelPath))
     {
         return expandedModelPath;
     }
 
-    // 2) Build a set of candidate directories and filenames
-    std::vector<std::string> candidates;
-    auto addCandidatesInDir = [&](const fs::path& dir){
-        candidates.push_back((dir / WhisperModelNameBaseEn).string());
-        candidates.push_back((dir / WhisperModelNameSmallEn).string());
-        candidates.push_back((dir / WhisperModelNameSmallEnQ8).string());
-    };
-
+    // 2) Build the ordered list of dirs to search for models. Same set is used
+    //    for the bare-filename lookup below and for the implicit fallback scan.
+    //    Order matters: ~/.coral/models (where the postinst symlinks land) is
+    //    checked first so user customizations win over the system bundle.
+    std::vector<fs::path> dirs;
+    std::string homeDir = Utils::getHomeDir();
+    if (!homeDir.empty()) {
+        dirs.push_back(fs::path(homeDir) / ".coral/models");
+    }
     #if defined(_WIN32)
     char exePathWin[MAX_PATH];
     DWORD got = GetModuleFileNameA(NULL, exePathWin, MAX_PATH);
-    if (got > 0 && got < MAX_PATH)
-    {
+    if (got > 0 && got < MAX_PATH) {
         fs::path exeDir = fs::path(exePathWin).parent_path();
-        addCandidatesInDir(exeDir / "model");
-        addCandidatesInDir(exeDir / "models");
-        addCandidatesInDir(exeDir / "resources" / "models");
+        dirs.push_back(exeDir / "model");
+        dirs.push_back(exeDir / "models");
+        dirs.push_back(exeDir / "resources" / "models");
     }
-
-    const char* appData = std::getenv("APPDATA");
-    if (appData && *appData)
-    {
-        addCandidatesInDir(fs::path(appData) / "Coral" / "models");
-    }
-    const char* localAppData = std::getenv("LOCALAPPDATA");
-    if (localAppData && *localAppData)
-    {
-        addCandidatesInDir(fs::path(localAppData) / "Coral" / "models");
-    }
+    if (const char* appData = std::getenv("APPDATA");      appData && *appData)      dirs.push_back(fs::path(appData)      / "Coral" / "models");
+    if (const char* localAppData = std::getenv("LOCALAPPDATA"); localAppData && *localAppData) dirs.push_back(fs::path(localAppData) / "Coral" / "models");
     #else
-    const char* appdir = std::getenv("APPDIR");
-    if (appdir && *appdir)
-    {
-        addCandidatesInDir(fs::path(appdir) / "usr/share/coral/models");
+    if (const char* appdir = std::getenv("APPDIR"); appdir && *appdir) {
+        dirs.push_back(fs::path(appdir) / "usr/share/coral/models");
     }
-
-    addCandidatesInDir(fs::path("/usr/share/coral/models"));
-
+    dirs.push_back(fs::path("/usr/share/coral/models"));
     char exePath[4096];
     ssize_t len = readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
     if (len != -1) {
         exePath[len] = '\0';
         fs::path exeDir = fs::path(exePath).parent_path();
-        addCandidatesInDir(exeDir / "../share/coral/models");
-        addCandidatesInDir(exeDir / "models");
+        dirs.push_back(exeDir / "../share/coral/models");
+        dirs.push_back(exeDir / "models");
     }
     #endif
 
-    std::string homeDir = Utils::getHomeDir();
-    if (!homeDir.empty())
-    {
-        addCandidatesInDir(fs::path(homeDir) / ".coral/models");
+    // 2a) If the configured value is a bare filename (no path separators), look
+    //     it up in each known dir. This is what the Electron UI saves when the
+    //     user picks a bundled/installed model from the dropdown.
+    auto isBareFilename = [](const std::string& s) {
+        if (s.empty()) return false;
+        if (s.find('/') != std::string::npos) return false;
+    #if defined(_WIN32)
+        if (s.find('\\') != std::string::npos) return false;
+    #endif
+        return true;
+    };
+    if (isBareFilename(configuredPath)) {
+        for (const auto& d : dirs) {
+            fs::path p = d / configuredPath;
+            if (fs::exists(p)) {
+                INFO("Resolved whisper model from configured filename: [" + p.string() + "]");
+                return p.string();
+            }
+        }
+        WARN("Configured whisperModelPath '" + configuredPath +
+             "' not found in any known model dir; falling back to implicit search");
     }
+
+    // 3) Implicit fallback: try the known shipped model names in each dir.
+    //    Order: q8 (preferred default — fastest) -> small -> base.
+    std::vector<std::string> candidates;
+    auto addCandidatesInDir = [&](const fs::path& dir){
+        candidates.push_back((dir / WhisperModelNameSmallEnQ8).string());
+        candidates.push_back((dir / WhisperModelNameSmallEn).string());
+        candidates.push_back((dir / WhisperModelNameBaseEn).string());
+    };
+    for (const auto& d : dirs) addCandidatesInDir(d);
 
     for (const auto& c : candidates)
     {
@@ -179,27 +193,26 @@ std::string Config::getWhisperModelPath() const {
         }
     }
 
+    // Last-resort fallback path for the error log: where we *expect* the
+    // default model to be on a working install. Prefer q8 (the shipped default).
     #if defined(_WIN32)
     std::string fallback;
-    const char* appDataFB = std::getenv("APPDATA");
-    if (appDataFB && *appDataFB)
-    {
-        fallback = (fs::path(appDataFB) / "Coral" / "models" / WhisperModelNameBaseEn).string();
+    if (const char* appDataFB = std::getenv("APPDATA"); appDataFB && *appDataFB) {
+        fallback = (fs::path(appDataFB) / "Coral" / "models" / WhisperModelNameSmallEnQ8).string();
     }
-    if (fallback.empty() || !fs::exists(fallback))
-    {
+    if (fallback.empty() || !fs::exists(fallback)) {
         char exePathFB[MAX_PATH];
         DWORD gotFB = GetModuleFileNameA(NULL, exePathFB, MAX_PATH);
-        if (gotFB > 0 && gotFB < MAX_PATH)
-        {
+        if (gotFB > 0 && gotFB < MAX_PATH) {
             fs::path exeDir = fs::path(exePathFB).parent_path();
-            fallback = (exeDir / "models" / WhisperModelNameBaseEn).string();
+            fallback = (exeDir / "models" / WhisperModelNameSmallEnQ8).string();
         }
     }
     #else
-    std::string fallback = (appdir && *appdir)
-        ? (fs::path(appdir) / "usr/share/coral/models" / WhisperModelNameBaseEn).string()
-        : (fs::path("/usr/share/coral/models") / WhisperModelNameBaseEn).string();
+    const char* appdirFB = std::getenv("APPDIR");
+    std::string fallback = (appdirFB && *appdirFB)
+        ? (fs::path(appdirFB) / "usr/share/coral/models" / WhisperModelNameSmallEnQ8).string()
+        : (fs::path("/usr/share/coral/models") / WhisperModelNameSmallEnQ8).string();
     #endif
 
     if (!fs::exists(fallback))

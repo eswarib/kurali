@@ -1,4 +1,4 @@
-#include "../src/TextInjector.h"
+#include "../../src/inject/TextInjector.h"
 #include <iostream>
 
 int main()

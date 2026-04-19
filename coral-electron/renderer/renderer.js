@@ -59,6 +59,26 @@ const statusDiv = document.getElementById('status');
 loadConfig();
 
 let config = {};
+// List of installed models discovered via IPC (filenames + abs paths).
+// Populated each time loadConfig runs; used to build the model dropdown and
+// to validate the saved value at submit time.
+let availableModels = [];
+
+// Convert "ggml-small.en-q8_0.bin" -> "Whisper Small (en, q8_0)" for display.
+function modelDisplayName(filename) {
+  if (!filename) return '';
+  let s = filename.replace(/^ggml-/i, '').replace(/\.bin$/i, '');
+  let quant = '';
+  const qm = s.match(/-(q[0-9_a-zA-Z]+)$/i);
+  if (qm) { quant = qm[1]; s = s.slice(0, qm.index); }
+  let lang = '';
+  const lm = s.match(/\.([a-z]{2})$/i);
+  if (lm) { lang = lm[1]; s = s.slice(0, lm.index); }
+  const cap = s ? (s.charAt(0).toUpperCase() + s.slice(1)) : filename;
+  const tags = [lang, quant].filter(Boolean);
+  const named = tags.length ? `${cap} (${tags.join(', ')})` : cap;
+  return `Whisper ${named}`;
+}
 
 function formatKeyComboFromEvent(e) {
   const parts = [];
@@ -173,12 +193,21 @@ function renderMainForm(cfg) {
   hidden.name = modelKey;
   hidden.value = cfg[modelKey] || '';
 
+  const installedFilenames = (availableModels || []).map(m => m.filename);
+
+  // Decide what label to show in the pill given the saved config value.
   const displayForPath = (p) => {
-    const v = (p || '').toLowerCase();
-    if (v.includes('ggml-base.en.bin')) return 'Whisper base';
-    if (v.includes('ggml-small.en-q8_0.bin') || v.includes('ggml-small.en.bin')) return 'Whisper small';
-    if (!v) return 'Whisper base';
-    return 'Custom';
+    if (!p) {
+      // No selection saved: prefer first installed model, otherwise prompt.
+      return installedFilenames.length ? modelDisplayName(installedFilenames[0]) : 'Select model…';
+    }
+    if (installedFilenames.includes(p)) return modelDisplayName(p);
+    // Bare ggml-*.bin filename that isn't installed locally — still show, mark missing.
+    if (/^ggml-.*\.bin$/i.test(p) && !p.includes('/') && !p.includes('\\')) {
+      return modelDisplayName(p) + ' (missing)';
+    }
+    // Absolute / relative path supplied via Custom picker.
+    try { return path.basename(p) || 'Custom'; } catch (_) { return 'Custom'; }
   };
 
   const modelWrap = document.createElement('div');
@@ -190,18 +219,29 @@ function renderMainForm(cfg) {
   menu.className = 'dropdown-menu';
   menu.style.display = 'none';
 
-  ['Whisper base', 'Whisper small', 'Custom'].forEach(txt => {
+  // Build dropdown from installed models, then append "Custom…" file picker.
+  const items = installedFilenames.map(fn => ({
+    label: modelDisplayName(fn),
+    value: fn,
+    isCustom: false,
+  }));
+  items.push({ label: 'Custom…', value: null, isCustom: true });
+
+  items.forEach(item => {
     const it = document.createElement('div');
     it.className = 'dropdown-item';
-    it.textContent = txt;
+    it.textContent = item.label;
     it.onclick = async () => {
-      pill.textContent = txt;
       menu.style.display = 'none';
-      if (txt === 'Whisper base') hidden.value = 'ggml-base.en.bin';
-      else if (txt === 'Whisper small') hidden.value = 'ggml-small.en-q8_0.bin';
-      else {
+      if (item.isCustom) {
         const fp = await ipcRenderer.invoke('select-model-file');
-        if (fp) hidden.value = fp;
+        if (fp) {
+          hidden.value = fp;
+          try { pill.textContent = path.basename(fp); } catch (_) { pill.textContent = 'Custom'; }
+        }
+      } else {
+        hidden.value = item.value;
+        pill.textContent = item.label;
       }
       requestResize();
     };
@@ -257,7 +297,7 @@ function requestResize() {
 }
 
 function loadConfig() {
-  fs.readFile(configPath, 'utf8', (err, data) => {
+  fs.readFile(configPath, 'utf8', async (err, data) => {
     if (err) {
       statusDiv.textContent = 'Failed to load config: ' + err.message;
       statusDiv.className = 'error';
@@ -265,6 +305,13 @@ function loadConfig() {
     }
     try {
       config = JSON.parse(data);
+      try {
+        availableModels = await ipcRenderer.invoke('list-installed-models');
+        if (!Array.isArray(availableModels)) availableModels = [];
+      } catch (e) {
+        console.warn('list-installed-models failed:', e && e.message);
+        availableModels = [];
+      }
       renderMainForm(config);
       statusDiv.textContent = '';
       statusDiv.className = '';
@@ -298,12 +345,16 @@ saveBtn.onclick = (e) => {
   if (triggerModeEl && (triggerModeEl.value === 'pushToTalk' || triggerModeEl.value === 'continuous')) {
     newConfig.triggerMode = triggerModeEl.value;
   }
-  // Validate model selection: allow known tokens or a valid file
+  // Validate model selection: empty, or a filename present in availableModels,
+  // or an absolute/relative path that exists on disk.
   try {
     const modelPath = newConfig['whisperModelPath'];
-    const tokens = ['ggml-base.en.bin', 'ggml-small.en.bin', 'ggml-small.en-q8_0.bin', ''];
-    const isToken = tokens.includes(modelPath);
-    if (!isToken) {
+    const installedNames = (availableModels || []).map(m => m.filename);
+    // Fallback set, in case list-installed-models failed earlier.
+    const fallback = ['ggml-base.en.bin', 'ggml-small.en.bin', 'ggml-small.en-q8_0.bin'];
+    const allowedNames = installedNames.length ? installedNames : fallback;
+    const isAllowedToken = !modelPath || allowedNames.includes(modelPath);
+    if (!isAllowedToken) {
       if (!fs.existsSync(modelPath) || !fs.statSync(modelPath).isFile()) {
         statusDiv.textContent = 'Please select a valid model file.';
         statusDiv.className = 'error';

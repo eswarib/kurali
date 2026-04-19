@@ -28,14 +28,16 @@ if not exist "%BUNDLE_DIR%" (
 )
 
 REM ---- Step 2: Stage dist/win-resources for electron-builder ----
-REM Structure: exe + conf/ + model/ next to exe (backend looks for exeDir/conf, exeDir/model)
+REM Structure: exe + conf/ next to exe (backend looks for exeDir/conf).
+REM Models are intentionally NOT bundled in the MSI to keep installer size
+REM small (~100MB vs ~760MB). The Electron frontend downloads the default
+REM ggml-small.en-q8_0.bin into %USERPROFILE%\.coral\models on first launch.
 echo.
 echo === Step 2: Staging dist/win-resources ===
 set STAGE_DIR=%REPO_ROOT%\dist\win-resources
 if exist "%STAGE_DIR%" rmdir /s /q "%STAGE_DIR%"
 mkdir "%STAGE_DIR%"
 mkdir "%STAGE_DIR%\conf"
-mkdir "%STAGE_DIR%\model"
 
 REM coral.exe
 copy /Y "%BUNDLE_DIR%\coral-%APPVER%.exe" "%STAGE_DIR%\coral.exe"
@@ -43,27 +45,16 @@ copy /Y "%BUNDLE_DIR%\coral-%APPVER%.exe" "%STAGE_DIR%\coral.exe"
 REM DLLs
 copy /Y "%BUNDLE_DIR%\*.dll" "%STAGE_DIR%\" 2>nul
 
-REM conf/ and model/ from bundle (already created by build-windows-bundle.cmd)
+REM conf/ from bundle (already created by build-windows-bundle.cmd)
 if exist "%BUNDLE_DIR%\conf\config.json" (
     copy /Y "%BUNDLE_DIR%\conf\config.json" "%STAGE_DIR%\conf\"
 ) else (
     copy /Y "%REPO_ROOT%\coral\conf\config-windows.json" "%STAGE_DIR%\conf\config.json"
 )
-if exist "%BUNDLE_DIR%\model\ggml-small.en.bin" (
-    copy /Y "%BUNDLE_DIR%\model\ggml-small.en.bin" "%STAGE_DIR%\model\"
-) else (
-    if exist "%REPO_ROOT%\models\ggml-small.en.bin" (
-        copy /Y "%REPO_ROOT%\models\ggml-small.en.bin" "%STAGE_DIR%\model\"
-    ) else (
-        echo Downloading ggml-small.en.bin...
-        powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin' -OutFile '%STAGE_DIR%\model\ggml-small.en.bin' -UseBasicParsing"
-    )
-)
 
 echo Staged contents:
 dir "%STAGE_DIR%" /b
 dir "%STAGE_DIR%\conf" /b
-dir "%STAGE_DIR%\model" /b
 
 REM ---- Step 3: Build MSI with electron-builder ----
 echo.

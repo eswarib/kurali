@@ -1,14 +1,14 @@
-#include "../src/TranscriberThread.h"
-#include "../src/Config.h"
-#include "../src/concurrentQueue.h"
-#include "../src/AudioEvent.h"
+#include "../../src/transcribe/TranscriberThread.h"
+#include "../../src/config/Config.h"
+#include "../../src/transcribe/concurrentQueue.h"
+#include "../../src/record/AudioEvent.h"
 #include <cassert>
 #include <iostream>
 #include <memory>
 #include <fstream>
 
 void testTranscriberThread() {
-    Config config("../src/config.json");
+    Config config("../../src/config.json");
     ConcurrentQueue<std::shared_ptr<AudioEvent>> audioQueue;
     ConcurrentQueue<std::shared_ptr<TextEvent>> textQueue;
 

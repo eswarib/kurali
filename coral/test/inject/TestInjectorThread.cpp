@@ -1,7 +1,7 @@
-#include "../src/InjectorThread.h"
-#include "../src/TranscriberThread.h" // For TextEvent
-#include "../src/Config.h"
-#include "../src/concurrentQueue.h"
+#include "../../src/inject/InjectorThread.h"
+#include "../../src/transcribe/TranscriberThread.h" // For TextEvent
+#include "../../src/config/Config.h"
+#include "../../src/transcribe/concurrentQueue.h"
 #include <cassert>
 #include <chrono>
 #include <iostream>
@@ -11,7 +11,7 @@
 // Note: We cannot easily check the side-effect (text injection via xdotool)
 // in a simple unit test.
 void testInjectorThread() {
-    Config config("../src/config.json");
+    Config config("../../src/config.json");
     ConcurrentQueue<std::shared_ptr<TextEvent>> textQueue;
 
     // Note: this test calls the real textInjector singleton.

@@ -1,4 +1,4 @@
-#include "../src/DoubleTapDetectionFSM.h"
+#include "../../src/record/DoubleTapDetectionFSM.h"
 #include <cassert>
 #include <iostream>
 #include <thread>

@@ -1,4 +1,4 @@
-#include "../src/KeyDetector.h"
+#include "../../src/record/KeyDetector.h"
 #include <cassert>
 #include <iostream>
 

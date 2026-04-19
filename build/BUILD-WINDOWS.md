@@ -35,7 +35,7 @@ This will:
 
 ## Step 2: Bundle coral.exe with DLLs and config
 
-After Step 1, create the native bundle (exe + DLLs + config + model):
+After Step 1, create the native bundle (exe + DLLs + config):
 
 ```cmd
 build\build-windows-bundle.cmd 0.5.0 %VCPKG_ROOT%
@@ -47,7 +47,8 @@ Use the version from `coral-electron/package.json` in the command above (shown h
 - VC++ runtime DLLs (msvcp140, vcruntime140, etc.)
 - vcpkg DLLs (portaudio, libsndfile)
 - `conf/config.json`
-- `model/ggml-small.en.bin` (copied from `models/` or downloaded)
+
+> **Note on Whisper models:** The Windows installer **does not bundle** any `ggml-*.bin` model file. On first launch, `coral-electron/main.js` downloads the configured default (`ggml-small.en-q8_0.bin`, ~182 MB) directly from Hugging Face into `%USERPROFILE%\.coral\models\`. This keeps the MSI small (~100 MB instead of ~760 MB) and avoids duplicating model files between the install dir and each user's home dir. A small progress window is shown during the one-time download.
 
 ## Step 3: Package Electron + backend together
 
@@ -69,9 +70,10 @@ If you already have `coral-windows-x64-v0.5.0` from Step 2:
    dist/win-resources/
    ├── coral.exe
    ├── *.dll
-   ├── conf/config.json
-   └── model/ggml-small.en.bin
+   └── conf/config.json
    ```
+
+   No `model/` directory — see the note in Step 2.
 
 2. **Run electron-builder** from `coral-electron`:
 

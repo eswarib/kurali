@@ -29,16 +29,330 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const readline = require('readline');
 
-/** Append one line to ~/.coral/logs/coral.log (same file as the C++ backend; no console noise). */
+/** Append one line to ~/.coral/logs/corallectron.log (separate file for the Electron main process). */
 function appendElectronLog(...args) {
   try {
     const logDir = path.join(os.homedir(), '.coral', 'logs');
     if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
-    const logFile = path.join(logDir, 'coral.log');
+    const logFile = path.join(logDir, 'corallectron.log');
     const msg = args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
     const line = `${new Date().toISOString()} [electron] ${msg}\n`;
     fs.appendFileSync(logFile, line, 'utf8');
   } catch (_) { /* ignore log failures */ }
+}
+
+// Tee console.log/info/warn/error into corallectron.log while still echoing to stdout/stderr.
+// This captures ad-hoc console calls throughout main.js (e.g. "[Coral] INJECT_PENDING without TRANSCRIBING_START")
+// into the log file without having to rewrite each call site.
+(function teeConsoleToElectronLog() {
+  const levelTag = { log: 'INFO', info: 'INFO', warn: 'WARN', error: 'ERROR' };
+  for (const method of Object.keys(levelTag)) {
+    const original = console[method].bind(console);
+    console[method] = (...args) => {
+      original(...args);
+      appendElectronLog(`[${levelTag[method]}]`, ...args);
+    };
+  }
+})();
+
+/**
+ * Ensure ~/.coral/models exists and contains every bundled .bin model from the
+ * system install dir, preferably as symlinks (zero disk overhead) and falling
+ * back to file copies when symlinks are unavailable.
+ *
+ * Why both:
+ *   - Linux: postinst already symlinks for $SUDO_USER. This is the safety net
+ *     for other users on the box, AppImage runs (no postinst), and dev runs.
+ *   - Windows: there's no postinst equivalent, AND fs.symlinkSync requires
+ *     admin or Developer Mode. Plain end-users get EPERM, so we copy instead.
+ *
+ * Idempotent: pre-existing files/symlinks at the destination are left alone.
+ */
+function seedUserModelsDir() {
+  try {
+    const home = os.homedir();
+    if (!home) return;
+    const userDir = path.join(home, '.coral', 'models');
+
+    // Candidate source dirs, in priority order. First one with .bin files wins.
+    // Order matters: more-specific (packaged) paths before dev fallback.
+    const candidates = [];
+    try { candidates.push(path.join(app.getAppPath(), 'usr', 'share', 'coral', 'models')); } catch (_) {}
+    if (process.platform === 'win32') {
+      // Windows installers stage models under <exe>\model (singular) or
+      // <exe>\models. See build-win-msi.bat / build-windows-bundle.cmd.
+      try {
+        const exeDir = path.dirname(process.execPath);
+        candidates.push(path.join(exeDir, 'model'));
+        candidates.push(path.join(exeDir, 'models'));
+        candidates.push(path.join(exeDir, 'resources', 'model'));
+        candidates.push(path.join(exeDir, 'resources', 'models'));
+      } catch (_) {}
+      try { candidates.push(path.join(app.getAppPath(), 'model')); } catch (_) {}
+      try { candidates.push(path.join(app.getAppPath(), 'models')); } catch (_) {}
+    } else {
+      candidates.push('/opt/coral/usr/share/coral/models');
+      candidates.push('/usr/share/coral/models');
+      if (process.env.APPDIR) {
+        candidates.push(path.join(process.env.APPDIR, 'usr', 'share', 'coral', 'models'));
+      }
+      try {
+        const exeDir = path.dirname(process.execPath);
+        candidates.push(path.join(exeDir, '..', 'share', 'coral', 'models'));
+      } catch (_) {}
+    }
+    // Repo dev fallback: <repo>/models/
+    candidates.push(path.resolve(__dirname, '..', 'models'));
+
+    let srcDir = null;
+    for (const c of candidates) {
+      try {
+        if (!fs.existsSync(c)) continue;
+        if (!fs.statSync(c).isDirectory()) continue;
+        const hasBin = fs.readdirSync(c).some((n) => /\.bin$/i.test(n));
+        if (hasBin) { srcDir = c; break; }
+      } catch (_) { /* skip */ }
+    }
+    if (!srcDir) {
+      console.warn('[Coral] seedUserModelsDir: no bundled models dir found; skipping');
+      return;
+    }
+
+    if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
+
+    // On Windows, jump straight to copy — symlinkSync almost always fails for
+    // non-admin users. Elsewhere, try symlink first and only copy as fallback.
+    const preferCopy = process.platform === 'win32';
+    let symlinked = 0;
+    let copied = 0;
+
+    for (const name of fs.readdirSync(srcDir)) {
+      if (!name.toLowerCase().endsWith('.bin')) continue;
+      const src = path.join(srcDir, name);
+      const dst = path.join(userDir, name);
+      // lstatSync detects any pre-existing entry (regular file, symlink, even
+      // a broken symlink); leave it alone in all those cases.
+      let exists = false;
+      try { fs.lstatSync(dst); exists = true; } catch (_) { /* not present */ }
+      if (exists) continue;
+
+      let placed = null;
+      if (!preferCopy) {
+        try { fs.symlinkSync(src, dst); placed = 'symlink'; } catch (_) { /* fall through to copy */ }
+      }
+      if (!placed) {
+        try { fs.copyFileSync(src, dst); placed = 'copy'; }
+        catch (e) {
+          console.warn('[Coral] seedUserModelsDir: failed to place', src, '->', dst, ':', e.message);
+        }
+      }
+      if (placed === 'symlink') symlinked++;
+      else if (placed === 'copy') copied++;
+    }
+    if (symlinked + copied > 0) {
+      console.log('[Coral] seedUserModelsDir:',
+        symlinked, 'symlink(s),', copied, 'copy/copies in', userDir, 'from', srcDir);
+    }
+  } catch (e) {
+    console.error('[Coral] seedUserModelsDir failed:', e && e.message);
+  }
+}
+seedUserModelsDir();
+
+/**
+ * On Windows, the MSI does NOT bundle any whisper .bin model (keeps installer
+ * ~100MB instead of ~760MB). On first launch we fetch the configured default
+ * model from Hugging Face into ~/.coral/models/. Subsequent launches see the
+ * file and skip the download.
+ *
+ * Linux/macOS users get models via their package (.deb postinst symlinks) or
+ * via seedUserModelsDir() above, so this is a Windows-only fast-path.
+ *
+ * Returns a Promise that resolves when a model is available (download
+ * completed, or already present, or platform doesn't need it). Rejects only
+ * on a hard download failure with no model present at all.
+ */
+function ensureDefaultModelDownloaded(progressCb) {
+  return new Promise((resolve, reject) => {
+    if (process.platform !== 'win32') return resolve({ skipped: true });
+
+    const home = os.homedir();
+    if (!home) return resolve({ skipped: true });
+
+    const userDir = path.join(home, '.coral', 'models');
+    try {
+      if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
+    } catch (e) {
+      return reject(new Error('Could not create ' + userDir + ': ' + e.message));
+    }
+
+    // Already have a usable transcription model? Skip download.
+    let existing = [];
+    try {
+      existing = fs.readdirSync(userDir).filter(
+        (n) => /^ggml-.*\.bin$/i.test(n) && !/silero/i.test(n)
+      );
+    } catch (_) { /* dir unreadable; treat as empty */ }
+    if (existing.length > 0) {
+      console.log('[Coral] ensureDefaultModelDownloaded: already have', existing.length, 'model(s); skipping');
+      return resolve({ skipped: true, existing });
+    }
+
+    // Read the configured default from the user/system config so we download
+    // whatever the C++ backend will actually try to load.
+    let defaultName = 'ggml-small.en-q8_0.bin';
+    try {
+      const cfgPath = path.join(home, '.coral', 'conf', 'config.json');
+      if (fs.existsSync(cfgPath)) {
+        const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+        if (typeof cfg.whisperModelPath === 'string'
+            && /^ggml-.*\.bin$/i.test(cfg.whisperModelPath)
+            && !cfg.whisperModelPath.includes('/')
+            && !cfg.whisperModelPath.includes('\\')) {
+          defaultName = cfg.whisperModelPath;
+        }
+      }
+    } catch (_) { /* keep fallback */ }
+
+    const url = `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/${defaultName}`;
+    const dst = path.join(userDir, defaultName);
+    const tmp = dst + '.partial';
+
+    console.log('[Coral] First-run model download:', defaultName, 'from', url);
+
+    let out;
+    try { out = fs.createWriteStream(tmp); }
+    catch (e) { return reject(new Error('Could not open ' + tmp + ': ' + e.message)); }
+
+    const cleanupAndFail = (err) => {
+      try { out.destroy(); } catch (_) {}
+      try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) {}
+      reject(err);
+    };
+
+    const https = require('https');
+    const MAX_REDIRECTS = 6;
+    const startedAt = Date.now();
+
+    const doRequest = (currentUrl, redirectsLeft) => {
+      const req = https.get(currentUrl, (res) => {
+        // Hugging Face issues 302/307 to a signed S3/CDN URL — follow it.
+        if ([301, 302, 303, 307, 308].includes(res.statusCode)) {
+          if (redirectsLeft <= 0) {
+            return cleanupAndFail(new Error('Too many redirects'));
+          }
+          const next = res.headers.location;
+          res.resume();
+          if (!next) return cleanupAndFail(new Error('Redirect with no Location header'));
+          return doRequest(next, redirectsLeft - 1);
+        }
+        if (res.statusCode !== 200) {
+          return cleanupAndFail(new Error('HTTP ' + res.statusCode + ' fetching ' + currentUrl));
+        }
+        const total = parseInt(res.headers['content-length'] || '0', 10);
+        let received = 0;
+        let lastReportedPct = -1;
+
+        res.on('data', (chunk) => {
+          received += chunk.length;
+          if (typeof progressCb === 'function' && total > 0) {
+            const pct = Math.floor((received * 100) / total);
+            if (pct !== lastReportedPct) {
+              lastReportedPct = pct;
+              try { progressCb({ filename: defaultName, received, total, pct, done: false }); }
+              catch (_) { /* progress reporter must never break the download */ }
+            }
+          }
+        });
+
+        res.pipe(out);
+        out.on('finish', () => {
+          out.close(() => {
+            try { fs.renameSync(tmp, dst); }
+            catch (e) { return cleanupAndFail(new Error('Could not move ' + tmp + ' -> ' + dst + ': ' + e.message)); }
+            const tookMs = Date.now() - startedAt;
+            console.log('[Coral] Model downloaded:', dst, 'in', tookMs, 'ms');
+            if (typeof progressCb === 'function') {
+              try { progressCb({ filename: defaultName, received: total || received, total: total || received, pct: 100, done: true }); }
+              catch (_) {}
+            }
+            resolve({ downloaded: defaultName, path: dst, bytes: received, durationMs: tookMs });
+          });
+        });
+        res.on('error', cleanupAndFail);
+      });
+      req.on('error', cleanupAndFail);
+      req.setTimeout(30000, () => {
+        req.destroy(new Error('Connection timed out fetching ' + currentUrl));
+      });
+    };
+
+    doRequest(url, MAX_REDIRECTS);
+  });
+}
+
+/**
+ * Tiny first-run window that shows the model download progress. Inline HTML
+ * (no preload) — main process pushes progress updates via executeJavaScript.
+ *
+ * Returns { window, update(progress), close() }.
+ */
+function showDownloadProgressWindow() {
+  const win = new BrowserWindow({
+    width: 460,
+    height: 220,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    alwaysOnTop: true,
+    frame: false,
+    show: false,
+    skipTaskbar: true,
+    webPreferences: { nodeIntegration: false, contextIsolation: true },
+  });
+  const html = `<!doctype html><html><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; base-uri 'none'">
+<title>Coral - First run</title>
+<style>
+  html,body { margin:0; padding:0; background:#1e1f22; color:#e6e6e6; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; height:100%; }
+  .wrap { padding:22px 26px; }
+  h1 { font-size:16px; font-weight:600; margin:0 0 6px 0; }
+  .sub { font-size:12px; color:#9aa0a6; margin-bottom:18px; }
+  .bar { width:100%; height:10px; background:#2a2c31; border-radius:6px; overflow:hidden; }
+  .fill { height:100%; width:0%; background:linear-gradient(90deg,#5db0ff,#7c5cff); transition:width .15s ease; }
+  .meta { display:flex; justify-content:space-between; margin-top:10px; font-size:12px; color:#bdc1c6; }
+  #pct { font-variant-numeric:tabular-nums; }
+  #size { font-variant-numeric:tabular-nums; }
+</style></head><body><div class="wrap">
+  <h1>Setting up Coral</h1>
+  <div class="sub" id="msg">Downloading the default Whisper model. This happens once.</div>
+  <div class="bar"><div class="fill" id="fill"></div></div>
+  <div class="meta"><span id="pct">0%</span><span id="size"></span></div>
+</div>
+<script>
+  function fmtBytes(b){ if(!b||b<1024) return (b||0)+' B'; const u=['KB','MB','GB']; let i=-1; do{b/=1024;i++;}while(b>=1024&&i<u.length-1); return b.toFixed(1)+' '+u[i]; }
+  window.coralUpdate = function(p){
+    var fill=document.getElementById('fill'), pct=document.getElementById('pct'), sz=document.getElementById('size'), msg=document.getElementById('msg');
+    var v = Math.max(0, Math.min(100, p.pct||0));
+    fill.style.width = v + '%';
+    pct.textContent = v + '%';
+    if (p.total) sz.textContent = fmtBytes(p.received||0) + ' / ' + fmtBytes(p.total);
+    if (p.done) { msg.textContent = 'Done. Starting Coral…'; }
+    if (p.filename) { document.title = 'Coral - downloading ' + p.filename; }
+  };
+</script></body></html>`;
+  win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+  win.once('ready-to-show', () => win.show());
+
+  return {
+    window: win,
+    update: (p) => {
+      if (win.isDestroyed()) return;
+      const json = JSON.stringify(p);
+      win.webContents.executeJavaScript('window.coralUpdate && window.coralUpdate(' + json + ')').catch(() => {});
+    },
+    close: () => { try { if (!win.isDestroyed()) win.close(); } catch (_) {} },
+  };
 }
 
 let originalIconPath;
@@ -582,7 +896,13 @@ function startBackend() {
                 pendingWhisperMs.push(whisperMs);
                 transcribingStartMs = null;
             } else {
-                console.warn('[Coral] INJECT_PENDING without TRANSCRIBING_START');
+                // Benign accounting drift — happens when an empty/skipped chunk
+                // goes straight to inject, or when continuous mode restarts
+                // mid-stream. Only relevant for dev-timing stats; route to the
+                // log file to keep the console clean.
+                if (recordDevTimingStats) {
+                    appendElectronLog('[WARN] [Coral] INJECT_PENDING without TRANSCRIBING_START');
+                }
                 pendingWhisperMs.push(-1);
             }
             pendingInjectionStarts.push(Date.now());
@@ -595,8 +915,9 @@ function startBackend() {
             } else if (t0 !== undefined) {
                 const injectMs = Date.now() - t0;
                 appendDevTimingStats(-1, injectMs);
-            } else {
-                console.warn('[Coral] INJECTION_DONE without matching INJECT_PENDING');
+            } else if (recordDevTimingStats) {
+                // Same accounting drift — log file only, dev-stats only.
+                appendElectronLog('[WARN] [Coral] INJECTION_DONE without matching INJECT_PENDING');
             }
         } else if (trimmed === 'TRANSCRIBING_DONE') {
             if (transcribingStartMs != null) {
@@ -794,7 +1115,7 @@ if (!gotLock) {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   readRecordDevTimingStats();
   // Remove the default application menu (File/Edit/View/Window/Help)
   Menu.setApplicationMenu(null);
@@ -821,6 +1142,44 @@ app.whenReady().then(() => {
   ]);
   tray.setToolTip('Coral App');
   tray.setContextMenu(contextMenu);
+
+  // Windows-only first-run model download. On Linux/macOS this is a no-op
+  // (returns immediately) — packaging already provides the model.
+  if (process.platform === 'win32') {
+    const home = os.homedir();
+    const userModels = home ? path.join(home, '.coral', 'models') : null;
+    let needsDownload = true;
+    try {
+      if (userModels && fs.existsSync(userModels)) {
+        needsDownload = !fs.readdirSync(userModels).some(
+          (n) => /^ggml-.*\.bin$/i.test(n) && !/silero/i.test(n)
+        );
+      }
+    } catch (_) { /* assume needs download */ }
+
+    if (needsDownload) {
+      const dl = showDownloadProgressWindow();
+      try {
+        await ensureDefaultModelDownloaded((p) => dl.update(p));
+      } catch (e) {
+        console.error('[Coral] First-run model download failed:', e.message);
+        dl.close();
+        const userModelsDisplay = userModels || '%USERPROFILE%\\.coral\\models';
+        dialog.showErrorBox(
+          'Coral - download failed',
+          'Could not download the default Whisper model.\n\n' + e.message +
+          '\n\nYou can manually place a ggml-*.bin file into:\n' + userModelsDisplay +
+          '\nthen restart Coral.'
+        );
+        // Keep the app running with no model — Settings still opens, user can
+        // pick "Custom…" or drop a file in. Backend will log a load error and
+        // restart cleanly once a model appears.
+      }
+      // Tiny delay so the user actually sees the "Done" state.
+      setTimeout(() => dl.close(), 600);
+    }
+  }
+
   showWelcomeWindow();
   startBackend();
 });
@@ -898,4 +1257,36 @@ ipcMain.handle('select-model-file', async () => {
   });
   if (result.canceled || !result.filePaths.length) return null;
   return result.filePaths[0];
+});
+
+// IPC handler: list ggml-*.bin model files in ~/.coral/models/.
+// That directory is populated by the .deb postinst (symlinks into the bundled
+// /opt/coral/usr/share/coral/models) and by seedUserModelsDir() at startup.
+// Keeping this single-source-of-truth keeps the UI predictable: whatever the
+// user sees in ~/.coral/models is exactly what the dropdown offers.
+ipcMain.handle('list-installed-models', () => {
+  const home = os.homedir();
+  if (!home) return [];
+  const dir = path.join(home, '.coral', 'models');
+  let entries;
+  try {
+    if (!fs.existsSync(dir)) return [];
+    entries = fs.readdirSync(dir);
+  } catch (_) { return []; }
+
+  const results = [];
+  for (const name of entries) {
+    if (!/^ggml-.*\.bin$/i.test(name)) continue;
+    // Skip the Silero VAD model — it's not a transcription model.
+    if (/silero/i.test(name)) continue;
+    const full = path.join(dir, name);
+    try {
+      // statSync follows symlinks, so size reflects the real model file.
+      const st = fs.statSync(full);
+      if (!st.isFile() || st.size === 0) continue;
+      results.push({ filename: name, dir, fullPath: full, size: st.size });
+    } catch (_) { /* dangling symlink or unreadable — skip */ }
+  }
+  results.sort((a, b) => a.filename.localeCompare(b.filename));
+  return results;
 });

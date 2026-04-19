@@ -1,4 +1,4 @@
-#include "../src/A11yInjector.h"
+#include "../../src/inject/A11yInjector.h"
 #include <iostream>
 
 int main()

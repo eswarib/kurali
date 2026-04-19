@@ -1,18 +1,18 @@
 # Unit test sources
 TEST_DIR := test
 BIN_DIR := bin
-TEST_SRCS := $(TEST_DIR)/TestA11yInjector.cpp $(TEST_DIR)/TestWaylandInjector.cpp $(TEST_DIR)/TestTextInjector.cpp
+TEST_SRCS := $(TEST_DIR)/inject/TestA11yInjector.cpp $(TEST_DIR)/inject/TestWaylandInjector.cpp $(TEST_DIR)/inject/TestTextInjector.cpp
 TEST_OBJS := $(patsubst $(TEST_DIR)/%.cpp, $(BIN_DIR)/%.test.o, $(TEST_SRCS))
 TEST_BINS := $(patsubst $(TEST_DIR)/%.cpp, $(BIN_DIR)/%, $(TEST_SRCS))
 
 # Build all tests
 .PHONY: tests
 
-alltests: backend $(TEST_BINS) $(BIN_DIR)/TestTextUtils
+alltests: backend $(TEST_BINS) $(BIN_DIR)/transcribe/TestTextUtils
 
 # Standalone (links only TextUtils.o; avoids heavy injector deps)
-$(BIN_DIR)/TestTextUtils: $(TEST_DIR)/TestTextUtils.cpp $(BIN_DIR)/TextUtils.o
-	@mkdir -p $(BIN_DIR)
+$(BIN_DIR)/transcribe/TestTextUtils: $(TEST_DIR)/transcribe/TestTextUtils.cpp $(BIN_DIR)/TextUtils.o
+	@mkdir -p $(BIN_DIR)/transcribe
 	$(CXX) $(CXXFLAGS) -o $@ $< $(BIN_DIR)/TextUtils.o
 
 # Link libraries and objects for tests
@@ -59,18 +59,19 @@ TEST_LINK_OBJS := \
 	$(BIN_DIR)/Logger.o \
 	$(BIN_DIR)/Utils.o \
 	$(BIN_DIR)/TextInjector.o \
+	$(BIN_DIR)/UInputInjector.o \
 	$(BIN_DIR)/TextUtils.o
 
 $(BIN_DIR)/%: $(TEST_DIR)/%.cpp $(TEST_LINK_OBJS)
-	@mkdir -p $(BIN_DIR)
+	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(LIBDIRS) -Wl,-rpath,$(RPATH) -o $@ $< $(TEST_LINK_OBJS) $(XDO_STATIC) $(TEST_LIBS)
 
 # Run all tests
 .PHONY: runtests
 runtests: alltests
 	@for test in $(TEST_BINS); do echo "Running $$test"; $$test; done
-	@echo "Running $(BIN_DIR)/TestTextUtils"
-	@$(BIN_DIR)/TestTextUtils
+	@echo "Running $(BIN_DIR)/transcribe/TestTextUtils"
+	@$(BIN_DIR)/transcribe/TestTextUtils
 
 # Add TextInjector.cpp and Recorder.cpp explicitly if not already included
 SRCS += $(SRC_DIR)/TextInjector.cpp

@@ -1,5 +1,6 @@
 #include "Config.h"
 #include "Utils.h"
+#include "AdaptiveThreadController.h"
 #include "concurrentQueue.h"
 #include "AudioEvent.h"
 #include "RecorderEvent.h"
@@ -91,6 +92,8 @@ int main(int argc, char* argv[])
         Config config(configPath);
 
         Logger::getInstance().init(config.getLogFilePath(), config.getDebugLevel());
+
+        AdaptiveThreadController::getInstance().init();
 
         INFO("Reading configuration from: " + configPath);
         INFO("coral is up and running");

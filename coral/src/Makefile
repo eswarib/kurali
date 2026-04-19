@@ -26,6 +26,13 @@ INCLUDES := -I/usr/local/include \
             -I/usr/include \
             -I../../whispercpp/include \
             -I../../whispercpp/ggml/include \
+            -I. \
+            -I./config \
+            -I./record \
+            -I./transcribe \
+            -I./inject \
+            -I./stats \
+            -I./perf \
             $(XDO_INC)
 
 # Library directories
@@ -40,8 +47,15 @@ BIN_DIR := ../bin
 TARGET := $(BIN_DIR)/coral
 
 # Source and object files
-SRCS := $(wildcard $(SRC_DIR)/*.cpp)
-OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(BIN_DIR)/%.o, $(SRCS))
+SRCS := $(wildcard $(SRC_DIR)/*.cpp) \
+        $(wildcard $(SRC_DIR)/config/*.cpp) \
+        $(wildcard $(SRC_DIR)/record/*.cpp) \
+        $(wildcard $(SRC_DIR)/transcribe/*.cpp) \
+        $(wildcard $(SRC_DIR)/inject/*.cpp) \
+        $(wildcard $(SRC_DIR)/stats/*.cpp) \
+        $(wildcard $(SRC_DIR)/perf/*.cpp)
+OBJS := $(addprefix $(BIN_DIR)/,$(notdir $(SRCS:.cpp=.o)))
+VPATH := $(SRC_DIR) $(SRC_DIR)/config $(SRC_DIR)/record $(SRC_DIR)/transcribe $(SRC_DIR)/inject $(SRC_DIR)/stats $(SRC_DIR)/perf
 
 RPATH := /usr/local/lib:../lib
 
@@ -54,7 +68,7 @@ $(TARGET): $(OBJS)
 		$(CXX) $(CXXFLAGS) $(LIBDIRS) -Wl,-rpath,$(RPATH) -o $@ $^ $(XDO_LIB) -lXinerama -lXtst -lX11 -lxkbcommon $(LIBS)
 
 # Compile source files to object files
-$(BIN_DIR)/%.o: $(SRC_DIR)/%.cpp
+$(BIN_DIR)/%.o: %.cpp
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
