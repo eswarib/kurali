@@ -17,6 +17,16 @@
 
 namespace fs = std::filesystem;
 
+#if defined(_WIN32)
+namespace {
+/** After copy_file from a read-only install dir, clear READONLY so the Electron UI can save. */
+void makeUserConfigWritable(const std::string& path)
+{
+    SetFileAttributesA(path.c_str(), FILE_ATTRIBUTE_NORMAL);
+}
+} // namespace
+#endif
+
 const std::string Config::WhisperModelNameSmallEnQ8 = "ggml-small.en-q8_0.bin";
 const std::string Config::WhisperModelNameSmallEn = "ggml-small.en.bin";
 const std::string Config::WhisperModelNameBaseEn = "ggml-base.en.bin";
@@ -261,6 +271,10 @@ void Config::copyConfigFileOnFirstRun()
             throw std::runtime_error("Default config not found. Place config in exeDir/conf/config.json or coral/conf/");
         }
         fs::copy_file(defaultConfigPath, userConfigPath, fs::copy_options::overwrite_existing);
+        // Bundled config under Program Files may be read-only; copy_file can
+        // propagate FILE_ATTRIBUTE_READONLY to the user's profile, causing EPERM
+        // when the Electron UI saves settings. Normalize to a writable file.
+        makeUserConfigWritable(userConfigPath);
 #else
         const char* appdir = std::getenv("APPDIR");
         std::string defaultConfigPath = appdir

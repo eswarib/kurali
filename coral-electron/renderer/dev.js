@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { ipcRenderer } = require('electron');
+const { ensureUserConfigWritable } = require('./config-helpers');
 
 function getAppImageMountPath() {
   if (process.env.APPIMAGE) {
@@ -27,6 +28,7 @@ if (process.env.APPIMAGE) {
     console.error('Failed to prepare user config:', e.message);
   }
   configPath = userConfigPath;
+  ensureUserConfigWritable(configPath);
 } else {
   const userConfigDir = path.join(os.homedir(), '.coral');
   configPath = path.join(userConfigDir, 'conf', 'config.json');
@@ -38,6 +40,7 @@ if (process.env.APPIMAGE) {
       fs.copyFileSync(devDefault, configPath);
     }
   } catch (e) { console.error('Failed to prepare user config:', e.message); }
+  ensureUserConfigWritable(configPath);
 }
 
 const devForm = document.getElementById('devForm');
@@ -152,6 +155,7 @@ devSaveBtn.onclick = (e) => {
       newConfig[el.name] = el.value;
     }
   }
+  ensureUserConfigWritable(configPath);
   fs.writeFile(configPath, JSON.stringify(newConfig, null, 2), (err) => {
     if (err) {
       devStatus.textContent = 'Failed to save: ' + err.message;
