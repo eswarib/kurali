@@ -12,10 +12,8 @@
   },
   "author": "Eswari Mathialagan",
   "license": "MIT",
-  "dependencies": {
-    "electron": "^38.0.0"
-  },
   "devDependencies": {
+    "electron": "^38.0.0",
     "electron-builder": "^25.1.8",
     "jest": "^30.0.4",
     "mocha": "^11.7.1"

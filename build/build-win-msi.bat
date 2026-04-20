@@ -57,20 +57,30 @@ dir "%STAGE_DIR%" /b
 dir "%STAGE_DIR%\conf" /b
 
 REM ---- Step 3: Build MSI with electron-builder ----
+REM electron-builder is a LOCAL devDependency (coral-electron\node_modules).
+REM It is NOT on PATH. Do not run "electron-builder" from PowerShell in build\
+REM or repo root — use this batch, or: cd coral-electron && npx electron-builder build --win msi
 echo.
 echo === Step 3: Building MSI ===
-cd coral-electron
+pushd "%REPO_ROOT%\coral-electron"
 call npm install
 if errorlevel 1 (
-    cd "%REPO_ROOT%"
+    popd
     exit /b 1
 )
-call npm run build:win:msi
+if not exist "node_modules\.bin\electron-builder.cmd" (
+    echo ERROR: electron-builder not installed. Expected:
+    echo   %CD%\node_modules\.bin\electron-builder.cmd
+    echo Run: npm install   inside coral-electron
+    popd
+    exit /b 1
+)
+call node_modules\.bin\electron-builder.cmd build --win msi
 if errorlevel 1 (
-    cd "%REPO_ROOT%"
+    popd
     exit /b 1
 )
-cd "%REPO_ROOT%"
+popd
 
 echo.
 echo === MSI build complete ===
