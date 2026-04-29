@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Coral — free, open source local speech-to-text for Linux and Windows. Private Whisper dictation with push-to-talk.">
+  <meta name="description" content="Coral — offline dictation for Linux and Windows. Private, fast speech-to-text with Whisper. No cloud, no tracking.">
   <title>Coral — Dictation App</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Caveat:wght@400;600;700&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
   <style>
@@ -226,6 +226,13 @@
       line-height: 1.45;
     }
 
+    p.subtitle .subtitle-line2 {
+      display: block;
+      margin-top: 0.45rem;
+      font-size: 1.05rem;
+      color: #4a625f;
+    }
+
     /* Hero only: crisp Inter + gradient (everything else is hand-drawn vibe). */
     a.button.button-download-coral {
       font-family: 'Inter', sans-serif;
@@ -255,6 +262,45 @@
       outline-offset: 3px;
     }
 
+    .hero-download-cta {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem 0.5rem;
+      margin: 0 auto 1.5rem;
+    }
+
+    .hero-point-hand {
+      display: inline-block;
+      font-size: clamp(2rem, 5.5vw, 2.85rem);
+      line-height: 1;
+      margin: 0;
+      padding: 0 0.1rem 0.15rem 0;
+      user-select: none;
+      cursor: default;
+      filter: drop-shadow(0 1px 1px rgba(19, 78, 74, 0.15));
+      flex-shrink: 0;
+      transform-origin: 30% 70%;
+      animation: hero-hand-pulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes hero-hand-pulse {
+      0%,
+      100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+      35% { transform: translate(4px, -1px) rotate(6deg) scale(1.04); }
+      55% { transform: translate(9px, 0) rotate(2deg) scale(1.02); }
+      75% { transform: translate(3px, 1px) rotate(-2deg) scale(1.03); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hero-point-hand {
+        animation: none;
+        transform: none;
+      }
+    }
+
     video, img.screenshot {
       margin-top: 2rem;
       max-width: 700px;
@@ -263,24 +309,280 @@
       box-shadow: 0 6px 20px rgba(13, 148, 136, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
     }
 
+    /* ---------- Hero: “GIF-like” demo (CSS only, no asset) ---------- */
+    .hero-demo {
+      width: 100%;
+      max-width: 520px;
+      margin: 0 auto 1.75rem;
+      text-align: left;
+    }
+
+    .hero-demo-window {
+      position: relative;
+      background: #fffdf8;
+      border: 2px solid #c9bd97;
+      border-radius: 10px 12px 14px 11px / 12px 10px 11px 14px;
+      box-shadow:
+        0 1px 0 rgba(0,0,0,0.04),
+        0 14px 32px -16px rgba(17, 56, 52, 0.35),
+        3px 3px 0 rgba(15, 118, 110, 0.12);
+      overflow: hidden;
+      transform: rotate(-0.5deg);
+    }
+
+    .hero-demo-titlebar {
+      font-family: 'Caveat', cursive;
+      font-weight: 700;
+      font-size: 1.15rem;
+      padding: 0.4rem 0.75rem;
+      background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+      border-bottom: 1.5px dashed rgba(13, 148, 136, 0.35);
+      color: #0f766e;
+    }
+
+    .hero-demo-body {
+      min-height: 132px;
+      padding: 0.85rem 1rem 1rem 1.25rem;
+      font-family: 'Kalam', cursive;
+      font-size: 1.08rem;
+      line-height: 1.5;
+      color: #1c2f2d;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          transparent 0,
+          transparent 26px,
+          rgba(13, 148, 136, 0.12) 26px,
+          rgba(13, 148, 136, 0.12) 27px
+        );
+    }
+
+    .hero-demo-body p {
+      margin: 0;
+    }
+
+    .hero-demo-line--hint {
+      color: #a99e6f;
+      font-style: italic;
+      min-height: 1.5em;
+      animation: hero-demo-hint-fade 10s ease-in-out infinite;
+    }
+
+    .hero-demo-line--out {
+      position: relative;
+      margin-top: 0.35rem;
+      min-height: 1.5em;
+      font-weight: 700;
+      color: #134e4a;
+    }
+
+    .hero-demo-line--out span {
+      display: inline-block;
+      max-width: 100%;
+      background: linear-gradient(90deg, rgba(20, 184, 166, 0.2), rgba(20, 184, 166, 0.05));
+      padding: 0.05em 0.2em;
+      border-radius: 0.2em;
+      clip-path: inset(0 100% 0 0);
+      animation: hero-demo-type-reveal 10s ease-in-out infinite;
+    }
+
+    .hero-demo-line--sfx {
+      margin-top: 0.35rem;
+      font-size: 0.88em;
+      line-height: 1.3;
+      color: #7a8e8a;
+      font-style: italic;
+    }
+
+    .hero-demo-hud {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem 0.75rem;
+      min-height: 2.5rem;
+      padding: 0.55rem 0.75rem;
+      background: rgba(236, 253, 245, 0.92);
+      border-top: 1.5px dashed rgba(13, 148, 136, 0.3);
+    }
+
+    .hero-demo-keys {
+      display: flex;
+      gap: 0.35rem;
+      align-items: center;
+    }
+
+    .hero-demo-keys .key {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 2.1rem;
+      height: 2rem;
+      font-family: 'Caveat', cursive;
+      font-weight: 700;
+      font-size: 1.1rem;
+      background: #fff;
+      border: 2px solid #0f766e;
+      border-radius: 6px 8px 7px 9px / 8px 6px 9px 7px;
+      box-shadow: 2px 2px 0 #0f766e;
+      transform: scale(1);
+      animation: hero-demo-key-idle 10s ease-in-out infinite;
+    }
+
+    .hero-demo-keys .key:nth-child(2) {
+      animation-name: hero-demo-key-idle-2;
+    }
+
+    .hero-demo-mic {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      opacity: 0.25;
+      filter: grayscale(0.3);
+      animation: hero-demo-mic 10s ease-in-out infinite;
+    }
+
+    .hero-demo-mic .mic-ico {
+      font-size: 1.25rem;
+      line-height: 1;
+    }
+
+    .hero-demo-wave {
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      height: 22px;
+    }
+
+    .hero-demo-wave i {
+      display: block;
+      width: 4px;
+      border-radius: 2px;
+      background: var(--primary);
+      animation: hero-demo-bar 0.55s ease-in-out infinite alternate;
+    }
+
+    .hero-demo-wave i:nth-child(1) { height: 6px; animation-delay: 0s; }
+    .hero-demo-wave i:nth-child(2) { height: 14px; animation-delay: 0.1s; }
+    .hero-demo-wave i:nth-child(3) { height: 20px; animation-delay: 0.05s; }
+    .hero-demo-wave i:nth-child(4) { height: 12px; animation-delay: 0.15s; }
+    .hero-demo-wave i:nth-child(5) { height: 8px;  animation-delay: 0.08s; }
+
+    @keyframes hero-demo-key-idle {
+      0%, 6%  { transform: scale(1); }
+      7%      { transform: scale(1.12); }
+      9%      { transform: scale(1); }
+      10%, 100% { transform: scale(1); }
+    }
+
+    @keyframes hero-demo-key-idle-2 {
+      0%, 9%  { transform: scale(1); }
+      10%     { transform: scale(1.12); }
+      12%     { transform: scale(1); }
+      13%, 100% { transform: scale(1); }
+    }
+
+    @keyframes hero-demo-mic {
+      0%, 14% { opacity: 0.25; filter: grayscale(0.5); }
+      16%, 34% { opacity: 1; filter: grayscale(0); }
+      36%, 100% { opacity: 0.25; filter: grayscale(0.5); }
+    }
+
+    @keyframes hero-demo-bar {
+      to { transform: scaleY(0.35); opacity: 0.6; }
+    }
+
+    @keyframes hero-demo-hint-fade {
+      0%, 32% { opacity: 1; }
+      36%, 92% { opacity: 0; }
+      96%, 100% { opacity: 1; }
+    }
+
+    @keyframes hero-demo-type-reveal {
+      0%, 34% { clip-path: inset(0 100% 0 0); }
+      62% { clip-path: inset(0 0 0 0); }
+      92%, 97% { clip-path: inset(0 0 0 0); }
+      98%, 100% { clip-path: inset(0 100% 0 0); }
+    }
+
+    .hero-demo-badge {
+      position: relative;
+      flex: 1;
+      text-align: right;
+      min-width: 9rem;
+      height: 1.5em;
+      font-family: 'Caveat', cursive;
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: #0f766e;
+    }
+
+    .hero-demo-badge span {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      white-space: nowrap;
+    }
+
+    .hero-demo-badge .lbl-hot {
+      animation: hero-demo-lbl-hot 10s ease-in-out infinite;
+    }
+
+    .hero-demo-badge .lbl-done {
+      animation: hero-demo-lbl-done 10s ease-in-out infinite;
+    }
+
+    @keyframes hero-demo-lbl-hot {
+      0%, 15%  { opacity: 0; }
+      16%, 33% { opacity: 1; }
+      34%, 100% { opacity: 0; }
+    }
+
+    @keyframes hero-demo-lbl-done {
+      0%, 35%  { opacity: 0; }
+      36%, 95% { opacity: 1; }
+      96%, 100% { opacity: 0; }
+    }
+
+    .hero-demo-badge .lbl-idle {
+      animation: hero-demo-lbl-idle 10s ease-in-out infinite;
+    }
+
+    @keyframes hero-demo-lbl-idle {
+      0%, 13%  { opacity: 1; }
+      14%, 95% { opacity: 0; }
+      96%, 100% { opacity: 1; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hero-demo-window .hero-demo-keys .key,
+      .hero-demo-line--out span,
+      .hero-demo-badge span {
+        animation: none !important;
+      }
+      .hero-demo-line--hint { opacity: 0; }
+      .hero-demo-line--out span { clip-path: inset(0 0 0 0); }
+      .hero-demo-mic { opacity: 1; filter: none; }
+      .hero-demo-wave i { animation: none !important; }
+      .hero-demo-badge .lbl-idle,
+      .hero-demo-badge .lbl-hot { opacity: 0 !important; }
+      .hero-demo-badge .lbl-done { opacity: 1 !important; }
+      .hero-demo-badge span { position: static; transform: none; display: block; text-align: right; }
+    }
+
     /* ===================================================================
-       Sketchpad card system — three cards on a desk:
-       Features · Feedback · Support
+       Sketchpad cards — single column: Why Coral → Support → Feedback
        =================================================================== */
     .sketch-grid {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 2.75rem 2rem;
-      max-width: 1280px;
+      gap: 2.75rem;
+      max-width: 720px;
       margin: 4rem auto 0;
       padding: 0 1.25rem;
       align-items: start;
-    }
-
-    @media (min-width: 900px) {
-      .sketch-grid {
-        grid-template-columns: 1fr 1.35fr 1fr;
-      }
     }
 
     /* ---------- Shared paper / card look ---------- */
@@ -672,6 +974,47 @@
       margin: 0;
     }
 
+    /* Collapsible feedback: summary shows first; form opens on expand */
+    .feedback-details {
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+    }
+    .feedback-details > summary {
+      list-style: none;
+      position: relative;
+      cursor: pointer;
+      padding: 0 2rem 0.35rem 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .feedback-details > summary::-webkit-details-marker { display: none; }
+    .feedback-summary-hint {
+      font-family: 'Caveat', cursive;
+      font-size: 1.1rem;
+      line-height: 1.2;
+      color: #5f7a78;
+      margin: 0.15rem 0 0;
+      text-align: center;
+    }
+    .feedback-chevron {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      font-size: 0.7rem;
+      line-height: 1;
+      color: #0f766e;
+      opacity: 0.7;
+      transform: translateY(-50%) rotate(0deg);
+      transition: transform 0.2s ease, opacity 0.2s ease;
+      pointer-events: none;
+    }
+    .feedback-details[open] .feedback-chevron {
+      transform: translateY(-50%) rotate(180deg);
+    }
+    .feedback-details > summary:hover .feedback-chevron { opacity: 1; }
+    .feedback-panel { padding-top: 0.35rem; }
+
     /* ---------- Responsive ---------- */
     @media (max-width: 900px) {
       .sketch-card { transform: none !important; }
@@ -733,8 +1076,45 @@
   <header>
     <img src="coral-logo.png" alt="Coral Logo">
     <h1>Speak with Coral</h1>
-    <p class="subtitle">The free and open source dictation app for Linux · runs locally with Whisper</p>
-    <a href="https://github.com/eswarib/coralapp/releases/latest" class="button button-download-coral">Download Coral</a>
+    <p class="subtitle">
+      Offline dictation app for Linux &amp; Windows
+      <span class="subtitle-line2">Private, fast speech-to-text powered by Whisper. No cloud, no tracking.</span>
+    </p>
+
+    <div class="hero-download-cta">
+      <span class="hero-point-hand" aria-hidden="true" title="This way!">👉</span>
+      <a href="https://github.com/eswarib/coralapp/releases/latest" class="button button-download-coral">Download Coral</a>
+    </div>
+
+    <div class="hero-demo" role="region" aria-label="Animated demo: double-tap your hotkey, speak, text appears where you type">
+      <div class="hero-demo-window">
+        <div class="hero-demo-titlebar">Where you’re typing · demo</div>
+        <div class="hero-demo-body">
+          <p class="hero-demo-line--hint">Double-tap your hotkey, say something…</p>
+          <p class="hero-demo-line--out">
+            <span>Coral turns your speech into text — right here.</span>
+          </p>
+          <p class="hero-demo-line--sfx" aria-hidden="true">(keyboard clacking)</p>
+        </div>
+        <div class="hero-demo-hud">
+          <div class="hero-demo-keys" aria-hidden="true">
+            <span class="key">⌃</span>
+            <span class="key">⌃</span>
+          </div>
+          <div class="hero-demo-mic" aria-hidden="true">
+            <span class="mic-ico">🎤</span>
+            <div class="hero-demo-wave">
+              <i></i><i></i><i></i><i></i><i></i>
+            </div>
+          </div>
+          <div class="hero-demo-badge">
+            <span class="lbl-idle">Double-tap to start</span>
+            <span class="lbl-hot">Listening…</span>
+            <span class="lbl-done">Typed ✓</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </header>
 
   <!-- SVG filter giving every sketch card a subtle hand-drawn wobble -->
@@ -774,74 +1154,7 @@
       </ul>
     </section>
 
-    <!-- ========== Card 2: Happy to know you more ========== -->
-    <section id="feedback-card" class="sketch-card feedback-card" aria-labelledby="feedback-heading">
-      <span class="tape left"  aria-hidden="true"></span>
-      <span class="tape right" aria-hidden="true"></span>
-
-      <!-- coffee-cup doodle -->
-      <svg class="doodle" viewBox="0 0 64 64" aria-hidden="true">
-        <g fill="none" stroke="#0f766e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 26 H46 V44 Q46 52 38 52 H20 Q12 52 12 44 Z"/>
-          <path d="M46 30 Q56 30 56 38 Q56 46 46 46"/>
-          <path d="M22 16 Q24 20 22 24"/>
-          <path d="M30 14 Q32 18 30 22"/>
-          <path d="M38 16 Q40 20 38 24"/>
-        </g>
-      </svg>
-
-      <h2 id="feedback-heading" class="sketch-title">
-        <span class="wave-lg" aria-hidden="true">👋</span>
-        Hello! Happy to know you more
-        <span class="title-underline" aria-hidden="true"></span>
-      </h2>
-
-      <p class="lead">
-        Scribble as much or as little as you like — all fields are optional.<br>
-        (Yes, I read every one. ✎)
-      </p>
-
-      <form id="feedback-form" novalidate>
-        <div>
-          <label for="fb-email">your email <span class="optional">(if you'd like a reply)</span></label>
-          <input id="fb-email" name="email" type="email" autocomplete="email"
-                 placeholder="you@somewhere.cool" />
-        </div>
-
-        <div>
-          <label for="fb-hear">how did you bump into Coral? <span class="optional">(optional)</span></label>
-          <input id="fb-hear" name="hear_from" type="text" maxlength="500"
-                 placeholder="reddit? a friend? a wild link in the woods?" />
-        </div>
-
-        <div>
-          <label for="fb-use">what are you using it for? <span class="optional">(optional)</span></label>
-          <textarea id="fb-use" name="use_case" maxlength="2000"
-                    placeholder="e.g. writing emails at 2am, dictating code comments, yelling at my terminal…"></textarea>
-        </div>
-
-        <div>
-          <label for="fb-comments">any thoughts, rants, love letters? <span class="optional">(optional)</span></label>
-          <textarea id="fb-comments" name="comments" maxlength="4000"
-                    placeholder="the good, the bad, the feature you wish existed…"></textarea>
-        </div>
-
-        <div class="actions">
-          <button type="submit" class="btn-sketch" id="fb-submit">Send it →</button>
-          <button type="button" class="btn-skip" id="fb-skip">not now</button>
-        </div>
-
-        <p class="status" id="fb-status" role="status" aria-live="polite"></p>
-        <p class="privacy">I won't spam you. Just me reading your note over coffee ☕</p>
-      </form>
-
-      <div class="thank-you" id="fb-thankyou" hidden>
-        <h3>Thank you! 🎉</h3>
-        <p>Note received. Seriously — this helps more than you think.</p>
-      </div>
-    </section>
-
-    <!-- ========== Card 3: Support ========== -->
+    <!-- ========== Card 2: Support ========== -->
     <section id="support" class="sketch-card support-card" aria-labelledby="support-heading">
       <span class="tape left"  aria-hidden="true"></span>
       <span class="tape right" aria-hidden="true"></span>
@@ -859,7 +1172,7 @@
       </svg>
 
       <h2 id="support-heading" class="sketch-title">
-        Need a hand?
+        Something wrong?
         <span class="title-underline" aria-hidden="true"></span>
       </h2>
 
@@ -886,6 +1199,81 @@
       </div>
     </section>
 
+    <!-- ========== Card 3: Happy to know you more (collapsible) ========== -->
+    <section id="feedback-card" class="sketch-card feedback-card" aria-labelledby="feedback-heading">
+      <span class="tape left"  aria-hidden="true"></span>
+      <span class="tape right" aria-hidden="true"></span>
+
+      <!-- coffee-cup doodle -->
+      <svg class="doodle" viewBox="0 0 64 64" aria-hidden="true">
+        <g fill="none" stroke="#0f766e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 26 H46 V44 Q46 52 38 52 H20 Q12 52 12 44 Z"/>
+          <path d="M46 30 Q56 30 56 38 Q56 46 46 46"/>
+          <path d="M22 16 Q24 20 22 24"/>
+          <path d="M30 14 Q32 18 30 22"/>
+          <path d="M38 16 Q40 20 38 24"/>
+        </g>
+      </svg>
+
+      <details class="feedback-details" id="feedback-details">
+        <summary class="feedback-summary">
+          <h2 id="feedback-heading" class="sketch-title">
+            <span class="wave-lg" aria-hidden="true">👋</span>
+            Hello! Happy to know you more
+            <span class="title-underline" aria-hidden="true"></span>
+          </h2>
+          <p class="feedback-summary-hint">Want to send feedback? Click or tap to open the form. All fields are optional.</p>
+          <span class="feedback-chevron" aria-hidden="true">▼</span>
+        </summary>
+
+        <div class="feedback-panel">
+          <p class="lead">
+            Scribble as much or as little as you like — all fields are optional.<br>
+            (Yes, I read every one. ✎)
+          </p>
+
+          <form id="feedback-form" novalidate>
+            <div>
+              <label for="fb-email">your email <span class="optional">(if you'd like a reply)</span></label>
+              <input id="fb-email" name="email" type="email" autocomplete="email"
+                     placeholder="you@somewhere.cool" />
+            </div>
+
+            <div>
+              <label for="fb-hear">how did you bump into Coral? <span class="optional">(optional)</span></label>
+              <input id="fb-hear" name="hear_from" type="text" maxlength="500"
+                     placeholder="reddit? a friend? a wild link in the woods?" />
+            </div>
+
+            <div>
+              <label for="fb-use">what are you using it for? <span class="optional">(optional)</span></label>
+              <textarea id="fb-use" name="use_case" maxlength="2000"
+                        placeholder="e.g. writing emails at 2am, dictating code comments, yelling at my terminal…"></textarea>
+            </div>
+
+            <div>
+              <label for="fb-comments">any thoughts, rants, love letters? <span class="optional">(optional)</span></label>
+              <textarea id="fb-comments" name="comments" maxlength="4000"
+                        placeholder="the good, the bad, the feature you wish existed…"></textarea>
+            </div>
+
+            <div class="actions">
+              <button type="submit" class="btn-sketch" id="fb-submit">Send it →</button>
+              <button type="button" class="btn-skip" id="fb-skip">not now</button>
+            </div>
+
+            <p class="status" id="fb-status" role="status" aria-live="polite"></p>
+            <p class="privacy">I won't spam you. Just me reading your note over coffee ☕</p>
+          </form>
+
+          <div class="thank-you" id="fb-thankyou" hidden>
+            <h3>Thank you! 🎉</h3>
+            <p>Note received. Seriously — this helps more than you think.</p>
+          </div>
+        </div>
+      </details>
+    </section>
+
   </div>
 
   <script type="module">
@@ -905,6 +1293,7 @@
     const skipBtn  = document.getElementById('fb-skip');
     const thankYou = document.getElementById('fb-thankyou');
     const helloCta = document.getElementById('hello-cta');
+    const feedbackDetails = document.getElementById('feedback-details');
 
     // Hide the feedback card once someone has already sent a note.
     if (localStorage.getItem(LS_SUBMITTED)) {
@@ -916,6 +1305,7 @@
     if (helloCta) {
       helloCta.addEventListener('click', (ev) => {
         ev.preventDefault();
+        if (feedbackDetails) feedbackDetails.open = true;
         card.scrollIntoView({ behavior: 'smooth', block: 'start' });
         card.classList.remove('pulse');
         void card.offsetWidth; // restart animation
@@ -925,11 +1315,14 @@
       });
     }
 
-    skipBtn.addEventListener('click', () => {
-      statusEl.className = 'status';
-      statusEl.textContent = 'No worries — the pad is here whenever.';
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
+    if (skipBtn) {
+      skipBtn.addEventListener('click', () => {
+        if (feedbackDetails) feedbackDetails.open = false;
+        statusEl.className = 'status';
+        statusEl.textContent = 'No worries — the pad is here whenever.';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
 
     function getClientToken() {
       let t = localStorage.getItem(LS_TOKEN);

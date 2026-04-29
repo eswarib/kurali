@@ -156,6 +156,88 @@ function showTranscriptionDoneNotification() {
   } catch (_) {}
 }
 
+let injectingOverlayWindow = null;
+
+function hideInjectingOverlay() {
+  if (!injectingOverlayWindow) return;
+  try {
+    injectingOverlayWindow.close();
+  } catch (_) {}
+  injectingOverlayWindow = null;
+}
+
+/** Small always-on-top pill while uinput/clipboard pasting is in progress. Shown on INJECTION_START, hidden on INJECTION_DONE. */
+function showInjectingOverlay() {
+  if (injectingOverlayWindow) {
+    try {
+      if (!injectingOverlayWindow.isDestroyed()) {
+        injectingOverlayWindow.show();
+        return;
+      }
+    } catch (_) {}
+    injectingOverlayWindow = null;
+  }
+  const display = screen.getPrimaryDisplay();
+  const { x, y, width, height } = display.workArea;
+  const winW = 300;
+  const winH = 68;
+  const marginBottom = 28;
+  const winX = Math.round(x + (width - winW) / 2);
+  const winY = Math.round(y + height - winH - marginBottom);
+  const overlayHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
+<style>
+  * { margin:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; background: transparent !important; overflow: hidden; }
+  .wrap { height: 100%; display: flex; align-items: center; justify-content: center; padding: 0 8px; }
+  .pill { display: flex; align-items: center; gap: 8px; padding: 12px 20px; background: rgba(15, 118, 110, 0.93);
+    color: #fff; font: 600 15px/1.25 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    border-radius: 14px; box-shadow: 0 8px 28px rgba(0,0,0,0.22);
+    border: 1px solid rgba(255,255,255,0.2); }
+  @keyframes p { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+  .dots { letter-spacing: 1px; animation: p 1s ease-in-out infinite; }
+</style></head><body>
+  <div class="wrap"><div class="pill"><span>Injecting text now</span><span class="dots">…</span></div></div>
+</body></html>`;
+  injectingOverlayWindow = new BrowserWindow({
+    width: winW,
+    height: winH,
+    x: winX,
+    y: winY,
+    frame: false,
+    show: false,
+    transparent: true,
+    resizable: false,
+    hasShadow: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    focusable: false,
+    backgroundColor: '#00000000',
+    parent: null,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+  injectingOverlayWindow.setMenuBarVisibility(false);
+  if (process.platform === 'linux') {
+    try {
+      injectingOverlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    } catch (_) {}
+  }
+  injectingOverlayWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(overlayHtml));
+  injectingOverlayWindow.once('ready-to-show', () => {
+    try {
+      if (injectingOverlayWindow && !injectingOverlayWindow.isDestroyed()) {
+        injectingOverlayWindow.show();
+      }
+    } catch (_) {}
+  });
+  injectingOverlayWindow.on('closed', () => {
+    if (injectingOverlayWindow) injectingOverlayWindow = null;
+  });
+}
+
 function readTriggerMode() {
   try {
     const cfgPath = path.join(os.homedir(), '.coral', 'conf', 'config.json');
@@ -586,6 +668,8 @@ function startBackend() {
                 pendingWhisperMs.push(-1);
             }
             pendingInjectionStarts.push(Date.now());
+        } else if (trimmed === 'INJECTION_START') {
+            showInjectingOverlay();
         } else if (trimmed === 'INJECTION_DONE') {
             const t0 = pendingInjectionStarts.shift();
             const whisperMs = pendingWhisperMs.shift();
@@ -598,6 +682,7 @@ function startBackend() {
             } else {
                 console.warn('[Coral] INJECTION_DONE without matching INJECT_PENDING');
             }
+            hideInjectingOverlay();
         } else if (trimmed === 'TRANSCRIBING_DONE') {
             if (transcribingStartMs != null) {
                 const whisperMs = Date.now() - transcribingStartMs;
@@ -650,6 +735,7 @@ function stopBackend() {
   transcribingStartMs = null;
   clearContinuousModeTimers();
   try { stopTrayAnimation(); } catch (_) {}
+  hideInjectingOverlay();
   if (backendRl) {
     try { backendRl.close(); } catch (_) {}
     backendRl = null;

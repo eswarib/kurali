@@ -35,6 +35,7 @@ void InjectorThread::run() {
                                                    .count();
 
         DEBUG(3, "Typing text: '" + textEvent->getText() + "'");
+        std::cout << "INJECTION_START" << std::endl;
         TextInjector::getInstance()->typeText(textEvent->getText());
         const auto t_after_type = std::chrono::steady_clock::now();
         const long long inject_type_ms =
