@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build coral for Windows — run in Git Bash with Visual Studio 2022 (C++ workload) installed.
+# Build kurali (C++ backend) for Windows — run in Git Bash with Visual Studio 2022 (C++ workload) installed.
 #
 # Prerequisites: Git Bash, Visual Studio 2022, Node.js
 # Optional env: VCPKG_ROOT, WHISPER_DIR (default: repo/vcpkg, repo/whisper.cpp)
@@ -17,7 +17,7 @@ BACKEND_DIR="$REPO_ROOT/coral"
 WHISPER_DIR="${WHISPER_DIR:-$REPO_ROOT/whisper.cpp}"
 VCPKG_ROOT="${VCPKG_ROOT:-$REPO_ROOT/vcpkg}"
 
-echo "=== Coral Windows Build ==="
+echo "=== Kurali Windows Build ==="
 echo "Repo root:  $REPO_ROOT"
 echo "vcpkg:      $VCPKG_ROOT"
 echo "whisper.cpp: $WHISPER_DIR"
@@ -96,8 +96,8 @@ fi
 echo "Whisper lib: $WHISPERLIB"
 echo "GGML libs:   $GGMLLIBS"
 
-# ── Build coral ──────────────────────────────────────────────────────────────
-echo "Building coral..."
+# ── Build kurali (CMake) ──────────────────────────────────────────────────────
+echo "Building kurali..."
 rm -rf "$REPO_ROOT/build-win"
 cmake -S coral -B build-win \
     -G "Visual Studio 17 2022" -A x64 \
@@ -114,17 +114,17 @@ cmake --build build-win --config Release
 
 # ── Bundle EXE and DLLs ─────────────────────────────────────────────────────
 OUT_DIR="$REPO_ROOT/coral-windows-x64-v$APP_VERSION"
-EXE_SRC=$(find "$REPO_ROOT/build-win" -name "coral.exe" 2>/dev/null | head -1)
+EXE_SRC=$(find "$REPO_ROOT/build-win" -name "kurali.exe" 2>/dev/null | head -1)
 
 if [ -z "$EXE_SRC" ]; then
-    echo "Error: coral.exe not found"
+    echo "Error: kurali.exe not found"
     exit 1
 fi
 
 echo "Bundling to $OUT_DIR..."
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR"
-cp "$EXE_SRC" "$OUT_DIR/coral-$APP_VERSION.exe"
+cp "$EXE_SRC" "$OUT_DIR/kurali-$APP_VERSION.exe"
 
 # VC++ runtime DLLs — from vswhere path (matches build toolset)
 VSWHERE="/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
@@ -165,4 +165,4 @@ echo "=== Build complete ==="
 echo "Output: $OUT_DIR"
 ls -la "$OUT_DIR"
 echo ""
-echo "Run: $OUT_DIR/coral-$APP_VERSION.exe"
+echo "Run: $OUT_DIR/kurali-$APP_VERSION.exe"

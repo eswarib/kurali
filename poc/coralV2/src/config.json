@@ -6,6 +6,6 @@
     "cmdTriggerKey": "Ctrl+F2",
     "whisperModelPath": "../../whispercpp/models/ggml-base.en.bin",
     "debugLevel": 5,
-    "logFilePath": "coral.log",
+    "logFilePath": "kurali.log",
     "logToConsole": true
 } 

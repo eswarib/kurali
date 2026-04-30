@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
         } else {
             const char* home = std::getenv("HOME");
             if (home) {
-                configPath = std::string(home) + "/.coral/config.json";
+                configPath = std::string(home) + "/.kurali/conf/config.json";
             } else {
                 std::cerr << "Could not determine home directory for default config path." << std::endl;
                 return 1;
@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
         Config config(configPath);
         Logger::getInstance().setLogFile(config.logFilePath);
         Logger::getInstance().setLogLevel(config.debugLevel);
-        INFO("coral is up and running");
+        INFO("Kurali is up and running");
         ConcurrentQueue<std::shared_ptr<AudioEvent>> audioEventQueue;
         ConcurrentQueue<std::shared_ptr<TextEvent>> textEventQueue;
         ConcurrentQueue<std::shared_ptr<TextEvent>> cmdTextEventQueue;
@@ -56,7 +56,7 @@ int main(int argc, char* argv[]) {
         recorderThread.stop();
         transcriberThread.stop();
         injectorThread.stop();
-        INFO("coral shutting down.");
+        INFO("Kurali shutting down.");
     } catch (const std::exception& ex) {
         ERROR(std::string("model file is not found. Shutting down the application: ") + ex.what());
         return 1;

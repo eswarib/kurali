@@ -60,7 +60,7 @@ void Config::loadFromFile()
     if (home.empty()) {
         throw std::runtime_error("Could not determine home directory (HOME or USERPROFILE)");
     }
-    std::string defaultLogPath = home + "/.coral/logs/coral.log";
+    std::string defaultLogPath = home + "/.kurali/logs/kurali.log";
     logFilePath = j.value("logFilePath", defaultLogPath);
 
     logFilePath = Utils::expandTilde(logFilePath);
@@ -138,11 +138,13 @@ std::string Config::getWhisperModelPath() const {
     const char* appData = std::getenv("APPDATA");
     if (appData && *appData)
     {
+        addCandidatesInDir(fs::path(appData) / "Kurali" / "models");
         addCandidatesInDir(fs::path(appData) / "Coral" / "models");
     }
     const char* localAppData = std::getenv("LOCALAPPDATA");
     if (localAppData && *localAppData)
     {
+        addCandidatesInDir(fs::path(localAppData) / "Kurali" / "models");
         addCandidatesInDir(fs::path(localAppData) / "Coral" / "models");
     }
     #else
@@ -167,6 +169,7 @@ std::string Config::getWhisperModelPath() const {
     std::string homeDir = Utils::getHomeDir();
     if (!homeDir.empty())
     {
+        addCandidatesInDir(fs::path(homeDir) / ".kurali/models");
         addCandidatesInDir(fs::path(homeDir) / ".coral/models");
     }
 
@@ -184,7 +187,10 @@ std::string Config::getWhisperModelPath() const {
     const char* appDataFB = std::getenv("APPDATA");
     if (appDataFB && *appDataFB)
     {
-        fallback = (fs::path(appDataFB) / "Coral" / "models" / WhisperModelNameBaseEn).string();
+        fallback = (fs::path(appDataFB) / "Kurali" / "models" / WhisperModelNameBaseEn).string();
+        if (fallback.empty() || !fs::exists(fallback)) {
+            fallback = (fs::path(appDataFB) / "Coral" / "models" / WhisperModelNameBaseEn).string();
+        }
     }
     if (fallback.empty() || !fs::exists(fallback))
     {
@@ -220,11 +226,32 @@ void Config::copyConfigFileOnFirstRun()
     if (home.empty()) {
         throw std::runtime_error("Could not determine home directory (HOME or USERPROFILE)");
     }
-    std::string userConfigDir = home + "/.coral";
+    std::string userConfigDir = home + "/.kurali";
     std::string userConfigPath = userConfigDir + "/conf/config.json";
+    std::string legacyUserConfigPath = home + "/.coral/conf/config.json";
+    std::string legacyFlatConfigPath = home + "/.coral/config.json";
 
     if (!fs::exists(userConfigPath)) {
         fs::create_directories(fs::path(userConfigPath).parent_path());
+
+        if (fs::exists(legacyUserConfigPath)) {
+            fs::copy_file(legacyUserConfigPath, userConfigPath, fs::copy_options::overwrite_existing);
+#if !defined(_WIN32)
+            uid_t uid = getuid();
+            gid_t gid = getgid();
+            chown(userConfigPath.c_str(), uid, gid);
+#endif
+            return;
+        }
+        if (fs::exists(legacyFlatConfigPath)) {
+            fs::copy_file(legacyFlatConfigPath, userConfigPath, fs::copy_options::overwrite_existing);
+#if !defined(_WIN32)
+            uid_t uid = getuid();
+            gid_t gid = getgid();
+            chown(userConfigPath.c_str(), uid, gid);
+#endif
+            return;
+        }
 
 #if defined(_WIN32)
         char exePath[MAX_PATH];

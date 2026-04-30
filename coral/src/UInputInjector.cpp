@@ -17,7 +17,7 @@
 // kInterCharacterDelay: pause after each character’s full key sequence. If the focused
 // app drops or reorders keys (VM, remote desktop, slow editor), increase this (try
 // 3000–8000 µs). Decrease only after testing. Monitor throughput with debugLevel >= 3
-// in ~/.coral/conf/config.json ("debugLevel": 3) — see coral.log for lines like:
+// in ~/.kurali/conf/config.json ("debugLevel": 3) — see kurali.log for lines like:
 //   UInputInjector: typed 1000 chars in 2500 ms (~2500 µs/char)
 namespace {
 constexpr std::chrono::microseconds kInterCharacterDelay{1500};
@@ -165,7 +165,7 @@ bool UInputInjector::createVirtualDevice()
 
     // Set up the virtual device description
     struct uinput_setup setup{};
-    std::strncpy(setup.name, "coral-keyboard", UINPUT_MAX_NAME_SIZE - 1);
+    std::strncpy(setup.name, "kurali-keyboard", UINPUT_MAX_NAME_SIZE - 1);
     setup.id.bustype = BUS_VIRTUAL;
     setup.id.vendor  = 0x1234;
     setup.id.product = 0x5678;

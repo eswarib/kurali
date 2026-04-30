@@ -1,6 +1,6 @@
-# Packaging Coral for Windows
+# Packaging Kurali for Windows
 
-This guide covers building both the C++ backend (`coral.exe`) and packaging it with the Electron frontend into a Windows installer (MSI, NSIS, or portable exe).
+This guide covers building the **Kurali** C++ backend (`kurali.exe`) and packaging it with the Electron frontend into a Windows installer (MSI, NSIS, or portable exe).
 
 ## Prerequisites
 
@@ -8,11 +8,11 @@ This guide covers building both the C++ backend (`coral.exe`) and packaging it w
 - **Visual Studio 2022** (or 2019) with C++ workload
 - **Node.js** (for npm, Electron)
 - **vcpkg** (C++ package manager)
-- **whisper.cpp** (cloned as sibling of coralapp, or set `WHISPER_DIR`)
+- **whisper.cpp** (cloned as sibling of the kurali repo, or set `WHISPER_DIR`)
 
-## Step 1: Build the C++ backend (coral.exe)
+## Step 1: Build the C++ backend (kurali.exe)
 
-From the `coralapp` directory:
+From the `kurali` directory (repo root):
 
 ```cmd
 build\build-windows.bat
@@ -24,7 +24,7 @@ This will:
 2. Install portaudio and libsndfile via vcpkg
 3. Clone whisper.cpp to `../whispercpp` if missing
 4. Build whisper.cpp (static libs)
-5. Build coral and produce `build-win\coral\Release\coral.exe` (or similar)
+5. Build kurali and produce `build-win\kurali\Release\kurali.exe` (or similar)
 
 **Environment overrides:**
 
@@ -33,7 +33,7 @@ This will:
 
 **Visual Studio generator:** The script uses `Visual Studio 18 2026`. If you have VS 2022 or 2019, edit `build-windows.bat` and change to `Visual Studio 17 2022` or `Visual Studio 16 2019` respectively.
 
-## Step 2: Bundle coral.exe with DLLs and config
+## Step 2: Bundle kurali.exe with DLLs and config
 
 After Step 1, create the native bundle (exe + DLLs + config + model):
 
@@ -43,7 +43,7 @@ build\build-windows-bundle.cmd 0.5.0 %VCPKG_ROOT%
 
 Use the version from `coral-electron/package.json` in the command above (shown here as `0.5.0`). This creates `coral-windows-x64-v0.5.0\` with:
 
-- `coral-0.5.0.exe`
+- `kurali-0.5.0.exe`
 - VC++ runtime DLLs (msvcp140, vcruntime140, etc.)
 - vcpkg DLLs (portaudio, libsndfile)
 - `conf/config.json`
@@ -67,7 +67,7 @@ If you already have `coral-windows-x64-v0.5.0` from Step 2:
 
    ```
    dist/win-resources/
-   ├── coral.exe
+   ├── kurali.exe
    ├── *.dll
    ├── conf/config.json
    └── model/ggml-small.en.bin
@@ -90,9 +90,9 @@ If you already have `coral-windows-x64-v0.5.0` from Step 2:
 
 | Step | Command | Result |
 |------|---------|--------|
-| 1 | `build\build-windows.bat` | `build-win\...\coral.exe` |
+| 1 | `build\build-windows.bat` | `build-win\...\kurali.exe` |
 | 2 | `build\build-windows-bundle.cmd 0.5.0 %VCPKG_ROOT%` | `coral-windows-x64-v0.5.0\` |
 | 3a | `build\build-win-msi.bat` | `build/Release/*.msi` |
 | 3b | Stage to `dist/win-resources`, then `npm run build:win:*` | MSI / portable / NSIS |
 
-The `package.json` `extraResources` section tells electron-builder to include `dist/win-resources` contents in the packaged app’s `resources` folder, where `main.js` looks for `coral.exe`.
+The `package.json` `extraResources` section tells electron-builder to include `dist/win-resources` contents in the packaged app’s `resources` folder, where `main.js` looks for `kurali.exe`.

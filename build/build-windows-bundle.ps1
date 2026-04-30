@@ -8,11 +8,11 @@ if ($RepoRoot -and (Test-Path $RepoRoot)) {
 }
 $buildWin = Join-Path $PWD "build-win"
 if (-not (Test-Path $buildWin)) {
-    throw "build-win not found at $buildWin. Run from coralapp repo root or pass -RepoRoot."
+    throw "build-win not found at $buildWin. Run from kurali repo root or pass -RepoRoot."
 }
 
-$exe = Get-ChildItem -Path $buildWin -Filter "coral.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-if (-not $exe) { throw "coral.exe not found" }
+$exe = Get-ChildItem -Path $buildWin -Filter "kurali.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $exe) { throw "kurali.exe not found" }
 
 $ver = $AppVer.Trim()
 $outDir = "coral-windows-x64-v" + $ver
@@ -23,11 +23,11 @@ try {
     [System.IO.File]::WriteAllText($testFile, "test")
     Remove-Item $testFile -Force -ErrorAction SilentlyContinue
 } catch {
-    throw "No write permission in $PWD. Try running from a user folder (e.g. C:\Users\YourName\coralapp) or Run as Administrator."
+    throw "No write permission in $PWD. Try running from a user folder (e.g. C:\Users\YourName\kurali) or Run as Administrator."
 }
 
 New-Item -ItemType Directory -Path $outDir -Force | Out-Null
-Copy-Item $exe.FullName (Join-Path $outDir ("coral-" + $ver + ".exe")) -Force
+Copy-Item $exe.FullName (Join-Path $outDir ("kurali-" + $ver + ".exe")) -Force
 
 # VC++ CRT from vswhere
 $raw = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null

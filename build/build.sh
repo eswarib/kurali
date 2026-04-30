@@ -151,7 +151,7 @@ else
     echo "whisper.cpp build complete — shared libraries copied to $BACKEND_DIR/lib/"
 fi
 
-# ── Build coral backend ──────────────────────────────────────────────────────
+# ── Build kurali backend ──────────────────────────────────────────────────────
 if [ "$IS_WINDOWS" = true ]; then
     # Windows: use CMake
     pushd "$BACKEND_DIR"
@@ -199,15 +199,15 @@ cp -r "$ELECTRON_DIR/package.json" "$APPDIR/"
 echo "Copying backend binary into AppDir..."
 # Copy backend binary into AppDir
 mkdir -p "$APPDIR/usr/bin"
-cp -r "$BACKEND_DIR/bin/coral" "$APPDIR/usr/bin/"
-strip "$APPDIR/usr/bin/coral"
+cp -r "$BACKEND_DIR/bin/kurali" "$APPDIR/usr/bin/"
+strip "$APPDIR/usr/bin/kurali"
 
 echo "Copied backend binary into AppDir..."
 
 #copy libraries needed for whisper
 mkdir -p "$APPDIR/usr/lib"
 cp -r "$BACKEND_DIR/lib/"* "$APPDIR/usr/lib/"
-bash $BACKEND_DIR/scripts/collect-libs.sh $BACKEND_DIR/bin/coral $APPDIR/usr/lib
+bash $BACKEND_DIR/scripts/collect-libs.sh $BACKEND_DIR/bin/kurali $APPDIR/usr/lib
 
 #copy config
 mkdir -p "$APPDIR/usr/share/coral/conf"

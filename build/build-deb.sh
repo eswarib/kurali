@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build a self-contained .deb with the same layout as the AppImage staging
-# (Electron + coral backend + whisper/coral libs from collect-libs + config + bundled model).
+#   (Electron + kurali backend + whisper/coral libs from collect-libs + config + bundled model).
 # Installs under /opt/coral — no FUSE, no AppImage.
 #
 # Usage: ./build-deb.sh [amd64|arm64]
@@ -8,8 +8,9 @@
 #   Output: $REPO_ROOT/Coral-<version>_<arch>.deb
 #
 # Environment:
-#   CORAL_DEB_SKIP_APT=1   — skip apt install (e.g. CI already installed deps)
-#   CORAL_DEB_FRESH_NPM=1 — rm coral-electron/node_modules before npm install (needed when switching arch locally)
+#   KURALI_DEB_SKIP_APT=1   — skip apt install (e.g. CI already installed deps)
+#   KURALI_DEB_FRESH_NPM=1 — rm coral-electron/node_modules before npm install (needed when switching arch locally)
+#   Legacy: CORAL_DEB_SKIP_APT / CORAL_DEB_FRESH_NPM are still accepted.
 set -eu
 
 DEB_ARCH="${1:-amd64}"
@@ -82,10 +83,10 @@ install_build_deps() {
     echo "Build dependencies satisfied."
 }
 
-if [ "${CORAL_DEB_SKIP_APT:-}" != "1" ]; then
+if [ "${KURALI_DEB_SKIP_APT:-${CORAL_DEB_SKIP_APT:-}}" != "1" ]; then
     install_build_deps
 else
-    echo "Skipping apt (CORAL_DEB_SKIP_APT=1)"
+    echo "Skipping apt (KURALI_DEB_SKIP_APT=1 or CORAL_DEB_SKIP_APT=1)"
 fi
 
 # ── Paths (same as build/build.sh) ───────────────────────────────────────────
@@ -132,16 +133,16 @@ cp "$WHISPER_DIR"/build/src/libwhisper.so* "$BACKEND_DIR/lib/"
 cp "$WHISPER_DIR"/build/ggml/src/libggml*.so* "$BACKEND_DIR/lib/"
 echo "whisper libraries copied to $BACKEND_DIR/lib/"
 
-# ── Build coral backend ──────────────────────────────────────────────────────
+# ── Build kurali backend ──────────────────────────────────────────────────────
 pushd "$BACKEND_DIR"
 make clean
 make all
 popd
 echo "Backend build complete."
 
-# ── Electron frontend (CI / CORAL_DEB_FRESH_NPM forces clean npm for correct Electron arch) ──
+# ── Electron frontend (CI / KURALI_DEB_FRESH_NPM forces clean npm for correct Electron arch) ──
 echo "Building Electron frontend..."
-if [ -n "${GITHUB_ACTIONS:-}" ] || [ "${CORAL_DEB_FRESH_NPM:-}" = "1" ]; then
+if [ -n "${GITHUB_ACTIONS:-}" ] || [ "${KURALI_DEB_FRESH_NPM:-${CORAL_DEB_FRESH_NPM:-}}" = "1" ]; then
     rm -rf "$ELECTRON_DIR/node_modules"
 fi
 pushd "$ELECTRON_DIR"
@@ -160,12 +161,12 @@ cp -r "$ELECTRON_DIR/node_modules" "$STAGE/"
 cp -r "$ELECTRON_DIR/package.json" "$STAGE/"
 
 mkdir -p "$STAGE/usr/bin"
-cp "$BACKEND_DIR/bin/coral" "$STAGE/usr/bin/coral"
-strip "$STAGE/usr/bin/coral"
+cp "$BACKEND_DIR/bin/kurali" "$STAGE/usr/bin/kurali"
+strip "$STAGE/usr/bin/kurali"
 
 mkdir -p "$STAGE/usr/lib"
 cp -r "$BACKEND_DIR/lib/"* "$STAGE/usr/lib/"
-bash "$BACKEND_DIR/scripts/collect-libs.sh" "$BACKEND_DIR/bin/coral" "$STAGE/usr/lib"
+bash "$BACKEND_DIR/scripts/collect-libs.sh" "$BACKEND_DIR/bin/kurali" "$STAGE/usr/lib"
 
 mkdir -p "$STAGE/usr/share/coral/conf"
 cp "$BACKEND_DIR/conf/config-linux.json" "$STAGE/usr/share/coral/conf/config.json"
@@ -202,7 +203,7 @@ mkdir -p "$DEB_ROOT/opt/coral"
 cp -a "$STAGE/." "$DEB_ROOT/opt/coral/"
 
 mkdir -p "$DEB_ROOT/usr/bin"
-cat > "$DEB_ROOT/usr/bin/coral" << 'LAUNCHER'
+cat > "$DEB_ROOT/usr/bin/kurali" << 'LAUNCHER'
 #!/bin/bash
 # Launcher for /opt/coral — same env as AppRun (bundled usr/lib + Electron)
 HERE=/opt/coral
@@ -218,21 +219,22 @@ fi
 echo "Electron runtime not found under $HERE"
 exit 1
 LAUNCHER
-chmod 755 "$DEB_ROOT/usr/bin/coral"
+chmod 755 "$DEB_ROOT/usr/bin/kurali"
 
 mkdir -p "$DEB_ROOT/usr/share/applications"
-cat > "$DEB_ROOT/usr/share/applications/coral.desktop" << DESKTOP
+cat > "$DEB_ROOT/usr/share/applications/kurali.desktop" << DESKTOP
 [Desktop Entry]
-Name=Coral
+Name=Kurali
 Comment=Voice transcription
-Exec=/usr/bin/coral
-Icon=coral
+Exec=/usr/bin/kurali
+Icon=kurali
 Terminal=false
 Type=Application
 Categories=Utility;Audio;AudioVideo;
 DESKTOP
 
 mkdir -p "$DEB_ROOT/usr/share/icons/hicolor/256x256/apps"
+cp "$LOGO" "$DEB_ROOT/usr/share/icons/hicolor/256x256/apps/kurali.png"
 cp "$LOGO" "$DEB_ROOT/usr/share/icons/hicolor/256x256/apps/coral.png"
 
 # Runtime deps for Electron GTK stack (not bundled by node_modules); adjust if needed.
@@ -246,9 +248,9 @@ Version: ${APP_VERSION}
 Section: sound
 Priority: optional
 Architecture: ${DEB_ARCH}
-Maintainer: Coral <https://github.com/eswarib/coralapp>
+Maintainer: Kurali <https://github.com/eswarib/kurali>
 Depends: ${DEPS}
-Description: Coral — local speech-to-text (Whisper)
+Description: Kurali — local speech-to-text (Whisper)
  Same payload as the AppImage: bundled backend, libs, and default model under /opt/coral.
 CONTROL
 

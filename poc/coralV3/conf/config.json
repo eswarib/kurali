@@ -7,6 +7,6 @@
     "whisperModelPath": "/usr/share/coral/models/ggml-base.en.bin",
     "whisperLanguage": "en",
     "debugLevel": 0,
-    "logFilePath": "coral.log",
+    "logFilePath": "kurali.log",
     "logToConsole": true
 } 

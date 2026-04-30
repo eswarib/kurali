@@ -1,7 +1,7 @@
 {
   "name": "coral-electron",
   "version": "0.6.0",
-  "description": "Electron UI and tray for Coral app",
+  "description": "Electron UI and tray for Kurali app",
   "main": "main.js",
   "scripts": {
     "build:prod": "electron-builder build --dir --linux AppImage",
@@ -21,8 +21,8 @@
     "mocha": "^11.7.1"
   },
   "build": {
-    "appId": "com.coral.app",
-    "productName": "Coral",
+    "appId": "com.kurali.app",
+    "productName": "Kurali",
     "directories": {
       "output": "../build/Release"
     },
@@ -52,7 +52,7 @@
       "perMachine": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Coral"
+      "shortcutName": "Kurali"
     },
     "linux": {
       "target": "AppImage",

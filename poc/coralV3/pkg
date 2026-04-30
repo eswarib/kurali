@@ -3,7 +3,7 @@ fpm -s dir -t deb -n coral -v 1.0.0 \
     --depends "libportaudio2" \
     --depends "libsndfile1" \
     --depends "libx11-6" \
-    bin/coral=/usr/bin/coral \
+    bin/kurali=/usr/bin/kurali \
     ../whispercpp/lib/libwhisper.so.1.7.5=/opt/coral/lib/libwhisper.so.1.7.5 \
     ../whispercpp/lib/libwhisper.so.1.7.5=/opt/coral/lib/libwhisper.so.1 \
     ../whispercpp/lib/libwhisper.so.1.7.5=/opt/coral/lib/libwhisper.so \

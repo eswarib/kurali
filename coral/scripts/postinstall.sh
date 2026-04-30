@@ -25,7 +25,7 @@ download_model "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-m
 # Copy config.json to user's home directory if not present
 for userhome in /home/*; do
     if [ -d "$userhome" ]; then
-        target="$userhome/.coral/conf"
+        target="$userhome/.kurali/conf"
         mkdir -p "$target"
         if [ ! -f "$target/config.json" ]; then
             cp /usr/share/coral/conf/config.json "$target/config.json"
@@ -50,7 +50,7 @@ ldconfig
 # Also handle root user
 #if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
 #    userhome=$(eval echo "~$SUDO_USER")
-#    target="$userhome/.coral/conf"
+#    target="$userhome/.kurali/conf"
 #    mkdir -p "$target"
 #    if [ ! -f "$target/config.json" ]; then
 #        cp /usr/share/coral/conf/config.json "$target/config.json"

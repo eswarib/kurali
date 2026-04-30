@@ -47,7 +47,7 @@ void Logger::init(const std::string& filename, int debugLevel) {
     } catch (const std::filesystem::filesystem_error& e) {
         std::cerr << "Fatal: Failed to create directory for log file '" << _logFilePath
                   << "'. Check permissions. Reason: " << e.what() << std::endl;
-        _logFilePath = "coral.log"; // Fallback to default
+        _logFilePath = "kurali.log"; // Fallback to default
         std::cerr << "Falling back to log file: " << _logFilePath << std::endl;
     }
 

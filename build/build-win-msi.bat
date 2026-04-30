@@ -1,14 +1,14 @@
 @echo off
 setlocal EnableDelayedExpansion
-REM Build coral for Windows and produce MSI installer via electron-builder.
-REM Run from coralapp directory: build\build-win-msi.bat
+REM Build kurali + MSI (electron-builder) on Windows.
+REM Run from kurali repo root: build\build-win-msi.bat
 REM Prerequisites: build-windows.bat deps + Node.js (npm)
 
 cd /d "%~dp0\.."
 set REPO_ROOT=%CD%
 
 if not exist "%REPO_ROOT%\coral-electron\package.json" (
-    echo Error: Run from coralapp directory. coral-electron\package.json not found.
+    echo Error: Run from repo root. coral-electron\package.json not found.
     exit /b 1
 )
 
@@ -37,8 +37,8 @@ mkdir "%STAGE_DIR%"
 mkdir "%STAGE_DIR%\conf"
 mkdir "%STAGE_DIR%\model"
 
-REM coral.exe
-copy /Y "%BUNDLE_DIR%\coral-%APPVER%.exe" "%STAGE_DIR%\coral.exe"
+REM kurali.exe -> dist/win-resources for electron-builder
+copy /Y "%BUNDLE_DIR%\kurali-%APPVER%.exe" "%STAGE_DIR%\kurali.exe"
 
 REM DLLs
 copy /Y "%BUNDLE_DIR%\*.dll" "%STAGE_DIR%\" 2>nul

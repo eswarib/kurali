@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Support Coral — thank you for the coffee!">
-  <title>Coral — Buy me a coffee</title>
+  <meta name="description" content="Support Kurali — thank you for the coffee!">
+  <title>Kurali — Buy me a coffee</title>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -317,16 +317,16 @@
     <nav class="site-nav" aria-label="Main">
       <a href="index.html">Home</a>
       <a href="index.html#support">Support</a>
-      <a href="https://github.com/eswarib/coralapp" rel="noopener noreferrer">GitHub</a>
+      <a href="https://github.com/eswarib/kurali" rel="noopener noreferrer">GitHub</a>
     </nav>
     <p class="coffee-cta-top">
-      <span>If you like Coral, buy me a</span>
+      <span>If you like Kurali, buy me a</span>
       <a class="button-top-donate" href="coffee.html" aria-current="page" title="You're here — tap the big button to fill the mug">☕</a>
     </p>
   </div>
 
   <main>
-    <h1>Thanks for cheering on Coral</h1>
+    <h1>Thanks for cheering on Kurali</h1>
      
     <p class="lead" id="lead-text">Each click pours 1% into a mug shared by everyone on this page. When it hits 100%, it empties and the full-mug counter goes up.</p>
     <p class="demo-banner" id="demo-banner" hidden></p>
@@ -391,7 +391,7 @@
 
   <footer>
     <p class="footer-donate">
-      <a href="index.html">← Back to Coral home</a>
+      <a href="index.html">← Back to Kurali home</a>
     </p>
   </footer>
 
@@ -400,8 +400,8 @@
   import { createClient } from './vendor/supabase-js.mjs';
 
   /** Paste from Supabase → Settings → API (anon key is safe with RLS below). Leave empty to use offline demo only. */
-  const CORAL_MUG_SUPABASE_URL = 'https://ruwdjzdiqfpyejywmjvw.supabase.co';
-  const CORAL_MUG_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1d2RqemRpcWZweWVqeXdtanZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzAyNzMsImV4cCI6MjA5MTMwNjI3M30.2euyDg2Kf1t-MGGejE7GXkT3YReiLFvzGCnw9wSkRPk';
+  const KURALI_MUG_SUPABASE_URL = 'https://ruwdjzdiqfpyejywmjvw.supabase.co';
+  const KURALI_MUG_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1d2RqemRpcWZweWVqeXdtanZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzAyNzMsImV4cCI6MjA5MTMwNjI3M30.2euyDg2Kf1t-MGGejE7GXkT3YReiLFvzGCnw9wSkRPk';
 
   const INNER_TOP = 193;
   const INNER_BOTTOM = 306;
@@ -477,7 +477,7 @@
       hint.textContent = 'Full mug! It empties and the counter just went up. 💛';
     }
     if (crossed30) {
-      console.info('Coral mug: shared pour crossed 30% (for email, wire a Supabase Database Webhook — see website/supabase-mug.sql).');
+      console.info('Kurali mug: shared pour crossed 30% (for email, wire a Supabase Database Webhook — see website/supabase-mug.sql).');
     }
   }
 
@@ -524,7 +524,7 @@
   });
 
   async function init() {
-    const configured = Boolean(CORAL_MUG_SUPABASE_URL && CORAL_MUG_SUPABASE_ANON_KEY);
+    const configured = Boolean(KURALI_MUG_SUPABASE_URL && KURALI_MUG_SUPABASE_ANON_KEY);
 
     if (!configured) {
       showDemo('');
@@ -532,7 +532,7 @@
       return;
     }
 
-    client = createClient(CORAL_MUG_SUPABASE_URL, CORAL_MUG_SUPABASE_ANON_KEY);
+    client = createClient(KURALI_MUG_SUPABASE_URL, KURALI_MUG_SUPABASE_ANON_KEY);
 
     const { data, error } = await client
       .from('mug_state')

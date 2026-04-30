@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableDelayedExpansion
-REM Bundle coral.exe with DLLs - no PowerShell required
+REM Bundle kurali.exe with DLLs - no PowerShell required
 REM Called from build-windows.bat with: call build-windows-bundle.cmd
 
 cd /d "%~dp0\.."
@@ -13,17 +13,17 @@ set "VCPKG_ROOT=%~2"
 set "OUT_DIR=coral-windows-x64-v%APPVER%"
 mkdir "%OUT_DIR%" 2>nul
 
-REM Find coral.exe
-set "CORAL_EXE="
-for /f "delims=" %%f in ('dir /s /b "build-win\coral.exe" 2^>nul') do (
-    if "!CORAL_EXE!"=="" set "CORAL_EXE=%%f"
+REM Find kurali.exe (C++ backend)
+set "KURALI_EXE="
+for /f "delims=" %%f in ('dir /s /b "build-win\kurali.exe" 2^>nul') do (
+    if "!KURALI_EXE!"=="" set "KURALI_EXE=%%f"
 )
-if "%CORAL_EXE%"=="" (
-    echo ERROR: coral.exe not found under build-win
+if "%KURALI_EXE%"=="" (
+    echo ERROR: kurali.exe not found under build-win
     exit /b 1
 )
 
-copy /Y "%CORAL_EXE%" "%OUT_DIR%\coral-%APPVER%.exe"
+copy /Y "%KURALI_EXE%" "%OUT_DIR%\kurali-%APPVER%.exe"
 
 REM conf/ and model/ next to exe (backend looks for exeDir/conf and exeDir/model)
 mkdir "%OUT_DIR%\conf" 2>nul

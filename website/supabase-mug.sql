@@ -1,7 +1,7 @@
--- Coral shared coffee mug — run in Supabase SQL Editor (PostgreSQL)
+-- Kurali shared coffee mug — run in Supabase SQL Editor (PostgreSQL)
 -- 1. Create project at https://supabase.com
 -- 2. Run this whole script
--- 3. Settings → API: copy Project URL + anon public key into website/coffee.html (CORAL_MUG_*)
+-- 3. Settings → API: copy Project URL + anon public key into website/coffee.html (KURALI_MUG_*)
 -- 4. Realtime: ensure mug_state is enabled (script adds it to publication)
 
 create table if not exists public.mug_state (
@@ -106,7 +106,7 @@ end $$;
 -- ---------------------------------------------------------------------------
 
 -- If the browser error says "Could not find the function public.pour_coffee(...) in the schema cache":
--- 1. Run this entire file in the SAME Supabase project as CORAL_MUG_SUPABASE_URL in coffee.html.
+-- 1. Run this entire file in the SAME Supabase project as KURALI_MUG_SUPABASE_URL in coffee.html.
 -- 2. Then run the NOTIFY below (or Dashboard → Settings → API → Reload schema).
 -- 3. Confirm the function exists:
 --    select proname, pg_get_function_identity_arguments(oid)

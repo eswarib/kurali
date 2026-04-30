@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Path to your binary (relative to this script)
-BINARY="../bin/coral"
+BINARY="../bin/kurali"
 
 # Output directory for libraries (relative to this script)
 OUTDIR="../appimage-libs"

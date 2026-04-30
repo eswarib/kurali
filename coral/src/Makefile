@@ -37,7 +37,7 @@ LIBS:= -lwhisper -lpthread -lm -lportaudio -lsndfile $(LIBS)
 # Paths
 SRC_DIR := .
 BIN_DIR := ../bin
-TARGET := $(BIN_DIR)/coral
+TARGET := $(BIN_DIR)/kurali
 
 # Source and object files
 SRCS := $(wildcard $(SRC_DIR)/*.cpp)

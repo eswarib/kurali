@@ -114,7 +114,7 @@ bool WaylandSession::portalCall(const std::string& interface,
 
 bool WaylandSession::createSession()
 {
-    const std::string token = "coral" + std::to_string(g_random_int());
+    const std::string token = "kurali" + std::to_string(g_random_int());
     const std::string reqPath = buildRequestPath(token);
 
     // Subscribe to the Response signal before making the call (avoids race)

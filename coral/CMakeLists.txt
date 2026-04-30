@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(coral LANGUAGES CXX)
+project(kurali LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -16,7 +16,7 @@ if(UNIX)
 	# Remove test sources if any matched
 	list(FILTER CORAL_SOURCES EXCLUDE REGEX "/test/.*\\.cpp$")
 
-	add_executable(coral ${CORAL_SOURCES})
+	add_executable(kurali ${CORAL_SOURCES})
 
 	# pkg-config for glib/gio and other libs
 	find_package(PkgConfig REQUIRED)
@@ -35,7 +35,7 @@ if(UNIX)
 	endif()
 	pkg_check_modules(SNDFILE sndfile REQUIRED)
 
-	target_include_directories(coral PRIVATE
+	target_include_directories(kurali PRIVATE
 		${GLIB2_INCLUDE_DIRS}
 		${GIO2_INCLUDE_DIRS}
 		${PORTAL_INCLUDE_DIRS}
@@ -44,7 +44,7 @@ if(UNIX)
 		${SNDFILE_INCLUDE_DIRS}
 	)
 
-	target_link_directories(coral PRIVATE
+	target_link_directories(kurali PRIVATE
 		${GLIB2_LIBRARY_DIRS}
 		${GIO2_LIBRARY_DIRS}
 		${PORTAL_LIBRARY_DIRS}
@@ -53,7 +53,7 @@ if(UNIX)
 		${SNDFILE_LIBRARY_DIRS}
 	)
 
-	target_compile_options(coral PRIVATE
+	target_compile_options(kurali PRIVATE
 		${GLIB2_CFLAGS_OTHER}
 		${GIO2_CFLAGS_OTHER}
 		${PORTAL_CFLAGS_OTHER}
@@ -63,7 +63,7 @@ if(UNIX)
 	)
 
 	# Link Linux libraries
-	target_link_libraries(coral PRIVATE
+	target_link_libraries(kurali PRIVATE
 		${GLIB2_LIBRARIES}
 		${GIO2_LIBRARIES}
 		${PORTAL_LIBRARIES}
@@ -78,22 +78,22 @@ if(UNIX)
 	# Link libxdo if available as static in repo; else system -lxdo
 	set(LIBXDO_STATIC "${CMAKE_CURRENT_LIST_DIR}/../libxdo/libxdo.a")
 	if(EXISTS "${LIBXDO_STATIC}")
-		target_link_libraries(coral PRIVATE "${LIBXDO_STATIC}")
+		target_link_libraries(kurali PRIVATE "${LIBXDO_STATIC}")
 	else()
 		find_library(LIBXDO xdo)
 		if(LIBXDO)
-			target_link_libraries(coral PRIVATE ${LIBXDO})
+			target_link_libraries(kurali PRIVATE ${LIBXDO})
 		endif()
 	endif()
 
 	# RPATH to local lib folder if used
-	set_target_properties(coral PROPERTIES
+	set_target_properties(kurali PROPERTIES
 		BUILD_RPATH "${CMAKE_CURRENT_LIST_DIR}/lib"
 		INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib"
 	)
 
 	# Install rules (portable layout)
-	install(TARGETS coral RUNTIME DESTINATION .)
+	install(TARGETS kurali RUNTIME DESTINATION .)
 
 else() # WIN32
     # Collect sources and exclude Linux-only files
@@ -105,7 +105,7 @@ else() # WIN32
     list(FILTER CORAL_SOURCES EXCLUDE REGEX "/src/X11WindowUtils\\.cpp$")
     list(FILTER CORAL_SOURCES EXCLUDE REGEX "/src/UInputInjector\\.cpp$")
 
-    add_executable(coral ${CORAL_SOURCES})
+    add_executable(kurali ${CORAL_SOURCES})
 
     # Version info: allow -D or env vars (APPVER, WHISPERLIB, GGMLLIBS from workflow)
     if(NOT DEFINED APP_VERSION)
@@ -163,8 +163,8 @@ else() # WIN32
                    ${CMAKE_CURRENT_BINARY_DIR}/version.h @ONLY)
     configure_file(${CMAKE_CURRENT_LIST_DIR}/src/version.rc.in
                    ${CMAKE_CURRENT_BINARY_DIR}/version.rc @ONLY)
-    target_include_directories(coral PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-    target_sources(coral PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/version.rc)
+    target_include_directories(kurali PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+    target_sources(kurali PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/version.rc)
 
     # Dependencies via vcpkg (static recommended):
     #   vcpkg install portaudio:x64-windows-static libsndfile:x64-windows-static
@@ -186,7 +186,7 @@ else() # WIN32
             set(PORTAUDIO_TARGET ${PORTAUDIO_LIB})
             find_path(PORTAUDIO_INCLUDE_DIR portaudio.h)
             if(PORTAUDIO_INCLUDE_DIR)
-                target_include_directories(coral PRIVATE ${PORTAUDIO_INCLUDE_DIR})
+                target_include_directories(kurali PRIVATE ${PORTAUDIO_INCLUDE_DIR})
             endif()
             message(STATUS "Using PortAudio library: ${PORTAUDIO_LIB}")
         else()
@@ -230,7 +230,7 @@ else() # WIN32
         find_library(WHISPER_LIBRARY NAMES whisper whisper.dll.lib HINTS ${WHISPER_HINT})
     endif()
     if(WHISPER_LIBRARY)
-        target_link_libraries(coral PRIVATE ${WHISPER_LIBRARY})
+        target_link_libraries(kurali PRIVATE ${WHISPER_LIBRARY})
         message(STATUS "Using Whisper library: ${WHISPER_LIBRARY}")
     else()
         message(WARNING "Whisper library not found. Ensure whisper(.lib) is available and set via -DWHISPER_LIBRARY.")
@@ -244,11 +244,11 @@ else() # WIN32
         string(REPLACE ";" "\n  - " _ggml_list "${GGML_LIBRARIES}")
         message(STATUS "Using GGML libraries:\n  - ${_ggml_list}")
         separate_arguments(GGML_LIBRARIES)
-        target_link_libraries(coral PRIVATE ${GGML_LIBRARIES})
+        target_link_libraries(kurali PRIVATE ${GGML_LIBRARIES})
     else()
         find_library(GGML_LIBRARY NAMES ggml ggml-static ggml.lib HINTS ${WHISPER_HINT})
         if(GGML_LIBRARY)
-            target_link_libraries(coral PRIVATE ${GGML_LIBRARY})
+            target_link_libraries(kurali PRIVATE ${GGML_LIBRARY})
             message(STATUS "Using GGML library: ${GGML_LIBRARY}")
         else()
             message(WARNING "GGML libraries not provided and not found; whisper may fail to link.")
@@ -256,36 +256,36 @@ else() # WIN32
     endif()
 
     # whisper/ggml headers (optional if using system installs)
-    target_include_directories(coral PRIVATE
+    target_include_directories(kurali PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/../whispercpp/include
         ${CMAKE_CURRENT_LIST_DIR}/../whispercpp/ggml/include
     )
 
-    target_link_libraries(coral PRIVATE ${PORTAUDIO_TARGET} ${SNDFILE_TARGET} user32 winmm setupapi ole32 oleaut32 uuid)
+    target_link_libraries(kurali PRIVATE ${PORTAUDIO_TARGET} ${SNDFILE_TARGET} user32 winmm setupapi ole32 oleaut32 uuid)
 
     # Post-build: copy conf/ next to exe (backend looks for exeDir/conf, exeDir/model)
-    add_custom_command(TARGET coral POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:coral>/conf
-        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:coral>/model
+    add_custom_command(TARGET kurali POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:kurali>/conf
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:kurali>/model
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${CMAKE_CURRENT_LIST_DIR}/conf/config-windows.json
-            $<TARGET_FILE_DIR:coral>/conf/config.json
-        COMMENT "Copying conf/ next to coral.exe for Windows"
+            $<TARGET_FILE_DIR:kurali>/conf/config.json
+        COMMENT "Copying conf/ next to kurali.exe for Windows"
     )
 
     # Install rules (portable layout)
-    install(TARGETS coral RUNTIME DESTINATION .)
+    install(TARGETS kurali RUNTIME DESTINATION .)
 endif()
 
 # CPack (Windows NSIS) – safe to include always; only generates when packaging
-set(CPACK_PACKAGE_NAME "Coral")
-set(CPACK_PACKAGE_VENDOR "Coral Project")
+set(CPACK_PACKAGE_NAME "Kurali")
+set(CPACK_PACKAGE_VENDOR "Kurali Project")
 set(CPACK_PACKAGE_VERSION "0.5.0")
 set(CPACK_PACKAGE_CONTACT "")
 if(WIN32)
 	set(CPACK_GENERATOR NSIS)
-	set(CPACK_NSIS_DISPLAY_NAME "Coral")
-	set(CPACK_NSIS_PACKAGE_NAME "Coral")
+	set(CPACK_NSIS_DISPLAY_NAME "Kurali")
+	set(CPACK_NSIS_PACKAGE_NAME "Kurali")
 	set(CPACK_NSIS_CONTACT "")
 	set(CPACK_NSIS_MUI_ICON "${CMAKE_CURRENT_LIST_DIR}/logo/coral.ico")
 endif()

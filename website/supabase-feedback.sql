@@ -1,5 +1,5 @@
--- Coral website feedback — run in the SAME Supabase project that powers the
--- coffee mug (CORAL_MUG_SUPABASE_URL in coffee.html / index.html).
+-- Kurali website feedback — run in the SAME Supabase project that powers the
+-- coffee mug (KURALI_MUG_SUPABASE_URL in coffee.html / index.html).
 -- 1. Paste this whole file into the Supabase SQL Editor.
 -- 2. Wire an email webhook: Database → Webhooks → table "feedback", event INSERT
 --    → point at Zapier/Make/n8n → Gmail or Resend. anon cannot SELECT this table,
@@ -128,4 +128,4 @@ notify pgrst, 'reload schema';
 --   URL:  your Zapier / Make / n8n webhook URL
 --   Headers: { "Content-Type": "application/json" }
 -- Zapier/Make step: "Send Email" via Gmail or Resend with fields from record.*
--- Subject suggestion: [Coral feedback] {{record.email}} ({{record.install_platform}})
+-- Subject suggestion: [Kurali feedback] {{record.email}} ({{record.install_platform}})

@@ -1,4 +1,4 @@
-# Build coral for Windows - run from PowerShell
+# Build Kurali C++ backend for Windows - run from PowerShell
 # Usage: .\build\build-windows.ps1
 # Or from build dir: .\build-windows.ps1
 

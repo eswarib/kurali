@@ -10,27 +10,42 @@ function getAppImageMountPath() {
   return null;
 }
 
+const LEGACY_USER_CONFIG_PATH = path.join(os.homedir(), '.coral', 'conf', 'config.json');
+const LEGACY_USER_CONFIG_FLAT = path.join(os.homedir(), '.coral', 'config.json');
+
+function seedUserConfigIfNeeded(userConfigPath, defaultConfigPath) {
+  if (fs.existsSync(userConfigPath)) return;
+  const dir = path.dirname(userConfigPath);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (fs.existsSync(LEGACY_USER_CONFIG_PATH)) {
+    fs.copyFileSync(LEGACY_USER_CONFIG_PATH, userConfigPath);
+    return;
+  }
+  if (fs.existsSync(LEGACY_USER_CONFIG_FLAT)) {
+    fs.copyFileSync(LEGACY_USER_CONFIG_FLAT, userConfigPath);
+    return;
+  }
+  if (defaultConfigPath && fs.existsSync(defaultConfigPath)) {
+    fs.copyFileSync(defaultConfigPath, userConfigPath);
+  }
+}
+
 // Resolve config.json path depending on environment (AppImage vs dev)
 let configPath;
 if (process.env.APPIMAGE) {
   const appImageMountPath = getAppImageMountPath();
   const defaultConfigPath = path.join(appImageMountPath, 'usr', 'share', 'coral', 'conf', 'config.json');
-  const userConfigDir = path.join(os.homedir(), '.coral');
+  const userConfigDir = path.join(os.homedir(), '.kurali');
   const userConfigPath = path.join(userConfigDir, 'conf', 'config.json');
   try {
-    if (!fs.existsSync(userConfigDir)) {
-      fs.mkdirSync(userConfigDir, { recursive: true });
-    }
-    if (!fs.existsSync(userConfigPath) && fs.existsSync(defaultConfigPath)) {
-      fs.copyFileSync(defaultConfigPath, userConfigPath);
-    }
+    seedUserConfigIfNeeded(userConfigPath, defaultConfigPath);
   } catch (e) {
     console.error('Failed to prepare user config:', e.message);
   }
   configPath = userConfigPath;
 } else {
-  // Development / packaged Windows: use ~/.coral/conf/config.json; copy from platform config on first run
-  const userConfigDir = path.join(os.homedir(), '.coral');
+  // Development / packaged Windows: use ~/.kurali/conf/config.json; copy from platform config on first run
+  const userConfigDir = path.join(os.homedir(), '.kurali');
   configPath = path.join(userConfigDir, 'conf', 'config.json');
   const platformConfig = process.platform === 'win32' ? 'config.json' : 'config-linux.json';
   let devDefault;
@@ -45,10 +60,7 @@ if (process.env.APPIMAGE) {
     devDefault = path.join(__dirname, '../..', 'coral', 'conf', platformConfig);
   }
   try {
-    if (!fs.existsSync(path.dirname(configPath))) fs.mkdirSync(path.dirname(configPath), { recursive: true });
-    if (!fs.existsSync(configPath) && fs.existsSync(devDefault)) {
-      fs.copyFileSync(devDefault, configPath);
-    }
+    seedUserConfigIfNeeded(configPath, devDefault);
   } catch (e) { console.error('Failed to prepare user config:', e.message); }
 }
 const configForm = document.getElementById('configForm');

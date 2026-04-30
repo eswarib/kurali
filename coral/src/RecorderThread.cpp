@@ -28,11 +28,11 @@ std::string generateUniqueFilename()
         baseTmp = std::filesystem::path("/tmp");
     }
     
-    // Create coral subfolder in temp
-    std::filesystem::path coralTmpDir = baseTmp / "coral";
+    // Create kurali subfolder in temp
+    std::filesystem::path kuraliTmpDir = baseTmp / "kurali";
     try
     { 
-        std::filesystem::create_directories(coralTmpDir); 
+        std::filesystem::create_directories(kuraliTmpDir); 
     }
     catch (...)
     {
@@ -46,7 +46,7 @@ std::string generateUniqueFilename()
     oss << "input_" << std::put_time(std::localtime(&now_time_t), "%Y%m%d_%H%M%S") << "_" << now_ms.count() << ".wav";
     
     // Return full path
-    return (coralTmpDir / oss.str()).string();
+    return (kuraliTmpDir / oss.str()).string();
 }
 }
 

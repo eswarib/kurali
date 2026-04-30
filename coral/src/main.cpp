@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
         {
             std::string home = Utils::getHomeDir();
             if (!home.empty()) {
-                configPath = home + "/.coral/conf/config.json";
+                configPath = home + "/.kurali/conf/config.json";
             }
             else
             {
@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
         }
 #endif
         if (!std::filesystem::exists(configPath)) {
-            INFO("Config file does not exist at $HOME/.coral, this may be the first run of the application, copying the default config file");
+            INFO("Config file does not exist at $HOME/.kurali, this may be the first run of the application, copying the default config file");
             Config::copyConfigFileOnFirstRun();
         }
 
@@ -93,7 +93,7 @@ int main(int argc, char* argv[])
         Logger::getInstance().init(config.getLogFilePath(), config.getDebugLevel());
 
         INFO("Reading configuration from: " + configPath);
-        INFO("coral is up and running");
+        INFO("Kurali is up and running");
         ConcurrentQueue<std::shared_ptr<AudioEvent>> audioEventQueue;
         ConcurrentQueue<std::shared_ptr<TextEvent>> textEventQueue;
         ConcurrentQueue<std::shared_ptr<RecorderEvent>> recorderEventQueue;
@@ -176,7 +176,7 @@ int main(int argc, char* argv[])
         transcriberThread.stop();
         injectorThread.stop();
         Recorder::terminatePortAudio();
-        INFO("coral shutting down.");
+        INFO("Kurali shutting down.");
     } catch (const std::exception& ex) {
         ERROR(std::string("model file is not found. Shutting down the application: ") + ex.what());
         return 1;

@@ -1,20 +1,20 @@
 @echo off
 setlocal EnableDelayedExpansion
-REM Build coral for Windows - steps from windows-build.yaml
-REM Run from coralapp directory: build\build-windows.bat
+REM Build kurali (C++ backend) for Windows - steps from windows-build.yaml
+REM Run from kurali repo root: build\build-windows.bat
 REM Or from build: .\build-windows.bat
 
 cd /d "%~dp0\.."
 set REPO_ROOT=%CD%
 
-REM Paths: default to sibling of coralapp (override with env: VCPKG_ROOT, WHISPER_DIR)
+REM Paths: default to sibling of kurali clone (override with env: VCPKG_ROOT, WHISPER_DIR)
 if "%VCPKG_ROOT%"=="" set VCPKG_ROOT=%REPO_ROOT%\..\vcpkg
 if "%WHISPER_DIR%"=="" set WHISPER_DIR=%REPO_ROOT%\..\whispercpp
 if not exist "%REPO_ROOT%\coral-electron\package.json" (
-    echo Error: Run from coralapp directory. coral-electron\package.json not found.
+    echo Error: Run from repo root. coral-electron\package.json not found.
     exit /b 1
 )
-echo === Coral Windows Build ===
+echo === Kurali Windows Build ===
 echo Repo root: %REPO_ROOT%
 echo vcpkg:     %VCPKG_ROOT%
 echo whisper:   %WHISPER_DIR%
@@ -73,15 +73,15 @@ if "%GGMLLIBS%"=="" (
 )
 echo GGMLLIBS=%GGMLLIBS%
 
-REM ---- Build coral ----
+REM ---- Build kurali (CMake) ----
 if exist build-win rmdir /s /q build-win
-echo Building coral...
+echo Building kurali...
 cmake -S coral -B build-win -G "Visual Studio 18 2026" -A x64 -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows -DCMAKE_BUILD_TYPE=Release -DWHISPER_LIBRARY="%WHISPERLIB%" -DGGML_LIBRARIES="%GGMLLIBS%" -DAPP_VERSION="%APPVER%" -DBUILD_DATE="%DATE%" -DGIT_COMMIT="local"
 cmake --build build-win --config Release
 if errorlevel 1 exit /b 1
 
-REM ---- Bundle coral.exe with DLLs, config, model ----
+REM ---- Bundle kurali.exe with DLLs, config, model ----
 echo.
-echo === Bundling coral.exe ===
+echo === Bundling kurali.exe ===
 call "%~dp0build-windows-bundle.cmd" %APPVER% %VCPKG_ROOT%
 if errorlevel 1 exit /b 1

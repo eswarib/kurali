@@ -8,13 +8,13 @@ if (process.platform === 'linux') {
   app.commandLine.appendSwitch('disable-gpu-sandbox');
 }
 // Quieter Chromium stderr for distributed builds (DBus tray, GPU sandbox, CSP INFO on stderr).
-// Local `electron .` stays verbose. Override: CORAL_VERBOSE=1 on .deb/AppImage/packaged too.
+// Local `electron .` stays verbose. Override: KURALI_VERBOSE=1 (legacy: CORAL_VERBOSE=1) on .deb/AppImage/packaged too.
 const installedDebLayout =
   process.platform === 'linux' &&
   (__dirname === '/opt/coral' ||
     __dirname.startsWith('/opt/coral/') ||
     (typeof process.execPath === 'string' && process.execPath.startsWith('/opt/coral/')));
-if (!process.env.CORAL_VERBOSE && (app.isPackaged || process.env.APPIMAGE || installedDebLayout)) {
+if (!process.env.KURALI_VERBOSE && !process.env.CORAL_VERBOSE && (app.isPackaged || process.env.APPIMAGE || installedDebLayout)) {
   app.commandLine.appendSwitch('log-level', '2');
 }
 
@@ -29,12 +29,45 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const readline = require('readline');
 
-/** Append one line to ~/.coral/logs/coral.log (same file as the C++ backend; no console noise). */
+const USER_CONFIG_DIR = path.join(os.homedir(), '.kurali');
+const USER_CONFIG_PATH = path.join(USER_CONFIG_DIR, 'conf', 'config.json');
+const LEGACY_USER_CONFIG_PATH = path.join(os.homedir(), '.coral', 'conf', 'config.json');
+const LEGACY_USER_CONFIG_FLAT = path.join(os.homedir(), '.coral', 'config.json');
+
+function ensureUserConfigDir() {
+  const dir = path.dirname(USER_CONFIG_PATH);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+
+/** If ~/.kurali/conf/config.json is missing, copy from legacy ~/.coral or bundled default. */
+function seedUserConfigFromLegacyOrDefault(defaultConfigSrc) {
+  if (fs.existsSync(USER_CONFIG_PATH)) return;
+  ensureUserConfigDir();
+  if (fs.existsSync(LEGACY_USER_CONFIG_PATH)) {
+    fs.copyFileSync(LEGACY_USER_CONFIG_PATH, USER_CONFIG_PATH);
+    return;
+  }
+  if (fs.existsSync(LEGACY_USER_CONFIG_FLAT)) {
+    fs.copyFileSync(LEGACY_USER_CONFIG_FLAT, USER_CONFIG_PATH);
+    return;
+  }
+  if (defaultConfigSrc && fs.existsSync(defaultConfigSrc)) {
+    fs.copyFileSync(defaultConfigSrc, USER_CONFIG_PATH);
+  }
+}
+function firstExistingPath(...candidates) {
+  for (const p of candidates) {
+    if (p && fs.existsSync(p)) return p;
+  }
+  return candidates[0];
+}
+
+/** Append one line to ~/.kurali/logs/kurali.log (same file as the C++ backend; no console noise). */
 function appendElectronLog(...args) {
   try {
-    const logDir = path.join(os.homedir(), '.coral', 'logs');
+    const logDir = path.join(os.homedir(), '.kurali', 'logs');
     if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
-    const logFile = path.join(logDir, 'coral.log');
+    const logFile = path.join(logDir, 'kurali.log');
     const msg = args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
     const line = `${new Date().toISOString()} [electron] ${msg}\n`;
     fs.appendFileSync(logFile, line, 'utf8');
@@ -103,7 +136,7 @@ let recordDevTimingStats = false;
 
 function readRecordDevTimingStats() {
   try {
-    const cfgPath = path.join(os.homedir(), '.coral', 'conf', 'config.json');
+    const cfgPath = USER_CONFIG_PATH;
     const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
     recordDevTimingStats = cfg.recordDevTimingStats === true;
   } catch (_) {
@@ -112,7 +145,7 @@ function readRecordDevTimingStats() {
 }
 
 /**
- * Append one development timing row to ~/.coral/dev-timing.stats
+ * Append one development timing row to ~/.kurali/dev-timing.stats
  * Line format: whisper_ms,inject_ms (inject_ms is -1 if transcript was not injected)
  * whisper_ms: START → INJECT_PENDING, or START → DONE when junk-filtered
  * inject_ms: INJECT_PENDING → INJECTION_DONE when injected
@@ -121,12 +154,12 @@ function readRecordDevTimingStats() {
 function appendDevTimingStats(whisperMs, injectMs) {
   if (!recordDevTimingStats) return;
   try {
-    const dir = path.join(os.homedir(), '.coral');
+    const dir = path.join(os.homedir(), '.kurali');
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     const file = path.join(dir, 'dev-timing.stats');
     fs.appendFileSync(file, `${whisperMs},${injectMs}\n`, 'utf8');
   } catch (e) {
-    console.warn('[Coral] dev-timing.stats append failed:', e.message);
+    console.warn('[Kurali] dev-timing.stats append failed:', e.message);
   }
 }
 
@@ -143,13 +176,13 @@ function clearContinuousModeTimers() {
 function showTranscriptionDoneNotification() {
   if (!Notification.isSupported()) return;
   try {
-    const cfgPath = path.join(os.homedir(), '.coral', 'conf', 'config.json');
+    const cfgPath = USER_CONFIG_PATH;
     const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
     if (cfg.showTranscriptionNotification === false) return;
   } catch (_) {}
   try {
     new Notification({
-      title: 'Coral',
+      title: 'Kurali',
       body: 'Transcription is being done — text will appear shortly.',
       icon: originalIconPath,
     }).show();
@@ -240,7 +273,7 @@ function showInjectingOverlay() {
 
 function readTriggerMode() {
   try {
-    const cfgPath = path.join(os.homedir(), '.coral', 'conf', 'config.json');
+    const cfgPath = USER_CONFIG_PATH;
     const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
     currentTriggerMode = cfg.triggerMode || 'pushToTalk';
   } catch (_) {}
@@ -315,7 +348,7 @@ function createAboutWindow() {
   }
   let triggerKeyDisplay = 'Ctrl';
   try {
-    const cfgPath = path.join(os.homedir(), '.coral', 'conf', 'config.json');
+    const cfgPath = USER_CONFIG_PATH;
     const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
     if (cfg.triggerKey) triggerKeyDisplay = cfg.triggerKey;
   } catch (_) {}
@@ -327,7 +360,7 @@ function createAboutWindow() {
     minimizable: true,
     maximizable: false,
     autoHideMenuBar: true,
-    title: 'About Coral',
+    title: 'About Kurali',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -339,7 +372,7 @@ function createAboutWindow() {
   const aboutHtml = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'">
-<title>About Coral</title>
+<title>About Kurali</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{overflow:hidden;height:100%}
@@ -358,10 +391,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
   cursor:pointer;background:linear-gradient(135deg,#0d47a1,#00897b);color:#fff;transition:opacity 0.15s}
 .btn:hover{opacity:0.9}
 </style></head><body>
-<div class="header"><div class="header-icon">C</div><h2>Coral</h2></div>
+<div class="header"><div class="header-icon">K</div><h2>Kurali</h2></div>
 <div class="version">Version ${app.getVersion()}</div>
 <div class="desc">To transcribe your speech, hold down the trigger key (${triggerKeyDisplay}) and start talking.</div>
-<div class="copy">&copy; 2025 Coral Contributors</div>
+<div class="copy">&copy; 2025 Kurali Contributors</div>
 <button class="btn" onclick="window.close()">OK</button>
 </body></html>`;
   aboutWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(aboutHtml));
@@ -371,8 +404,8 @@ function getAppImageMountPath()
 {
     if (process.env.APPIMAGE)
     {
-        // process.execPath: /tmp/.mount_Coral-XXXXXX/usr/bin/electron
-        // We want: /tmp/.mount_Coral-XXXXXX
+        // process.execPath: /tmp/.mount_Kurali-XXXXXX/usr/bin/electron
+        // We want: /tmp/.mount_Kurali-XXXXXX
         return path.join(path.dirname(process.execPath), "..", "..", "..");
     }
     return null;
@@ -439,7 +472,7 @@ function promptInputGroupPermission() {
     dialog.showMessageBox({
         type: 'warning',
         title: 'Keyboard Access Required',
-        message: 'Coral needs access to keyboard input devices for hotkey detection and text injection.\n\n' +
+        message: 'Kurali needs access to keyboard input devices for hotkey detection and text injection.\n\n' +
                  'This is a one-time setup that requires your password:\n' +
                  '  • Adds your user to the "input" group\n' +
                  '  • Enables the virtual keyboard device (/dev/uinput)\n\n' +
@@ -473,7 +506,7 @@ function promptInputGroupPermission() {
                         title: 'Setup Complete',
                         message: 'Input permissions have been configured.\n\n' +
                                  'Please reboot your computer for the changes to take effect,\n' +
-                                 'then start Coral again.',
+                                 'then start Kurali again.',
                         buttons: ['Reboot Now', 'Later'],
                         defaultId: 0,
                         cancelId: 1,
@@ -500,35 +533,29 @@ function startBackend() {
         console.log('Backend already running in this Electron process; skipping spawn.');
         return;
     }
-    let coralBinary, configPath, backendCwd, backendEnv;
+    let kuraliBinary, configPath, backendCwd, backendEnv;
     const isWin = process.platform === 'win32';
-    const userConfigDir = path.join(os.homedir(), '.coral');
-    const userConfigPath = path.join(userConfigDir, 'conf', 'config.json');
+    const userConfigDir = USER_CONFIG_DIR;
+    const userConfigPath = USER_CONFIG_PATH;
 
     if (process.env.APPIMAGE)
     {
-        // AppImage: binary is in usr/bin/coral
+        // AppImage: backend is usr/bin/kurali (older builds: coral)
         const appImageMountPath = getAppImageMountPath();
-        coralBinary = path.join(appImageMountPath, 'usr', 'bin', 'coral');
+        kuraliBinary = firstExistingPath(
+            path.join(appImageMountPath, 'usr', 'bin', 'kurali'),
+            path.join(appImageMountPath, 'usr', 'bin', 'coral'),
+        );
         const defaultConfigPath = path.join(appImageMountPath, 'usr', 'share', 'coral', 'conf', 'config.json');
         try {
-            appendElectronLog('Checking if user config directory exists:', userConfigDir);
-            if (!fs.existsSync(path.dirname(userConfigPath))) {
-                fs.mkdirSync(path.dirname(userConfigPath), { recursive: true });
-                console.log('Created user config directory:', userConfigDir);
-            }
             appendElectronLog('Checking if user config exists:', userConfigPath);
             appendElectronLog('Checking if default config exists:', defaultConfigPath);
-            if (!fs.existsSync(userConfigPath) && fs.existsSync(defaultConfigPath)) {
-                fs.copyFileSync(defaultConfigPath, userConfigPath);
-                console.log('Copied default config to user config:', defaultConfigPath, '->', userConfigPath);
-            } else {
-                if (fs.existsSync(userConfigPath)) {
-                    console.log('User config already exists:', userConfigPath);
-                }
-                if (!fs.existsSync(defaultConfigPath)) {
-                    console.log('Default config does not exist:', defaultConfigPath);
-                }
+            seedUserConfigFromLegacyOrDefault(defaultConfigPath);
+            if (fs.existsSync(userConfigPath)) {
+                console.log('User config:', userConfigPath);
+            }
+            if (!fs.existsSync(defaultConfigPath)) {
+                console.log('Default config does not exist:', defaultConfigPath);
             }
         } catch (e) {
             console.error('Failed to prepare user config:', e.message);
@@ -544,23 +571,33 @@ function startBackend() {
     {
         // Windows: packaged (MSI) vs development
         if (app.isPackaged) {
-            // Installed app: coral.exe and resources are in process.resourcesPath
-            coralBinary = path.join(process.resourcesPath, 'coral.exe');
-            if (!fs.existsSync(coralBinary)) {
-                coralBinary = path.join(path.dirname(process.execPath), 'resources', 'coral.exe');
-            }
+            kuraliBinary = firstExistingPath(
+                path.join(process.resourcesPath, 'kurali.exe'),
+                path.join(process.resourcesPath, 'coral.exe'),
+                path.join(path.dirname(process.execPath), 'resources', 'kurali.exe'),
+                path.join(path.dirname(process.execPath), 'resources', 'coral.exe'),
+            );
         } else {
-            // Development: coral.exe in build-win/Release
+            // Development: kurali.exe in build-win (legacy layouts / names still tried)
             const repoRoot = path.join(__dirname, '..');
-            coralBinary = path.join(repoRoot, 'build-win', 'Release', 'coral.exe');
-            if (!fs.existsSync(coralBinary)) {
-                coralBinary = path.join(repoRoot, 'build-win', 'coral', 'Release', 'coral.exe');
+            kuraliBinary = firstExistingPath(
+                path.join(repoRoot, 'build-win', 'Release', 'kurali.exe'),
+                path.join(repoRoot, 'build-win', 'kurali', 'Release', 'kurali.exe'),
+                path.join(repoRoot, 'build-win', 'Release', 'coral.exe'),
+                path.join(repoRoot, 'build-win', 'coral', 'Release', 'coral.exe'),
+            );
+            if (!kuraliBinary || !fs.existsSync(kuraliBinary)) {
+                const { execSync } = require('child_process');
+                try {
+                    const found = execSync(`dir /s /b "${path.join(repoRoot, 'build-win')}\\kurali.exe" 2>nul`, { encoding: 'utf-8' }).trim().split('\n')[0];
+                    if (found && fs.existsSync(found)) kuraliBinary = found.trim();
+                } catch (_) {}
             }
-            if (!fs.existsSync(coralBinary)) {
+            if (!kuraliBinary || !fs.existsSync(kuraliBinary)) {
                 const { execSync } = require('child_process');
                 try {
                     const found = execSync(`dir /s /b "${path.join(repoRoot, 'build-win')}\\coral.exe" 2>nul`, { encoding: 'utf-8' }).trim().split('\n')[0];
-                    if (found && fs.existsSync(found)) coralBinary = found.trim();
+                    if (found && fs.existsSync(found)) kuraliBinary = found.trim();
                 } catch (_) {}
             }
         }
@@ -568,37 +605,37 @@ function startBackend() {
             ? path.join(process.resourcesPath, 'conf', 'config.json')
             : path.join(__dirname, '..', 'coral', 'conf', process.platform === 'win32' ? 'config.json' : 'config-linux.json');
         try {
-            if (!fs.existsSync(path.dirname(userConfigPath))) {
-                fs.mkdirSync(path.dirname(userConfigPath), { recursive: true });
-                console.log('Created user config directory:', userConfigDir);
-            }
-            if (!fs.existsSync(userConfigPath) && fs.existsSync(defaultConfigSrc)) {
-                fs.copyFileSync(defaultConfigSrc, userConfigPath);
-                console.log('Copied default config to user config (first run):', defaultConfigSrc, '->', userConfigPath);
+            seedUserConfigFromLegacyOrDefault(defaultConfigSrc);
+            if (fs.existsSync(userConfigPath)) {
+                console.log('User config:', userConfigPath);
             }
         } catch (e) {
             console.error('Failed to prepare user config:', e.message);
         }
         configPath = userConfigPath;
-        backendCwd = path.dirname(coralBinary);
+        backendCwd = path.dirname(kuraliBinary);
         backendEnv = { ...process.env };
     }
     else if (process.platform === 'linux' && !process.env.APPIMAGE &&
-        fs.existsSync(path.join(__dirname, 'usr', 'bin', 'coral')))
+        (fs.existsSync(path.join(__dirname, 'usr', 'bin', 'kurali')) ||
+            fs.existsSync(path.join(__dirname, 'usr', 'bin', 'coral'))))
     {
-        // Linux .deb (or same layout as AppImage): bundled coral under ./usr/bin; whisper/ggml in ./usr/lib
+        // Linux .deb (or same layout as AppImage): bundled backend under ./usr/bin
         const appRoot = __dirname;
-        coralBinary = path.join(appRoot, 'usr', 'bin', 'coral');
+        kuraliBinary = firstExistingPath(
+            path.join(appRoot, 'usr', 'bin', 'kurali'),
+            path.join(appRoot, 'usr', 'bin', 'coral'),
+        );
         const defaultConfigPath = path.join(appRoot, 'usr', 'share', 'coral', 'conf', 'config.json');
         try {
             if (!fs.existsSync(path.dirname(userConfigPath))) fs.mkdirSync(path.dirname(userConfigPath), { recursive: true });
-            if (!fs.existsSync(userConfigPath) && fs.existsSync(defaultConfigPath)) {
-                fs.copyFileSync(defaultConfigPath, userConfigPath);
-                console.log('Copied default config (packaged Linux):', defaultConfigPath, '->', userConfigPath);
+            seedUserConfigFromLegacyOrDefault(defaultConfigPath);
+            if (fs.existsSync(userConfigPath)) {
+                console.log('User config (packaged Linux):', userConfigPath);
             }
         } catch (e) { console.error('Failed to prepare user config:', e.message); }
         configPath = userConfigPath;
-        backendCwd = path.dirname(coralBinary);
+        backendCwd = path.dirname(kuraliBinary);
         const bundledLib = path.join(appRoot, 'usr', 'lib');
         backendEnv = {
             ...process.env,
@@ -607,24 +644,25 @@ function startBackend() {
     }
     else
     {
-        // Linux development: use ~/.coral/config.json, copy from config-linux.json on first run
-        coralBinary = path.join(__dirname, '..', 'coral', 'bin', 'coral');
+        // Linux development: use ~/.kurali/conf/config.json, copy from config-linux.json on first run
+        kuraliBinary = firstExistingPath(
+            path.join(__dirname, '..', 'coral', 'bin', 'kurali'),
+            path.join(__dirname, '..', 'coral', 'bin', 'coral'),
+        );
         const defaultConfigSrc = path.join(__dirname, '..', 'coral', 'conf', 'config-linux.json');
         try {
             if (!fs.existsSync(path.dirname(userConfigPath))) fs.mkdirSync(path.dirname(userConfigPath), { recursive: true });
-            if (!fs.existsSync(userConfigPath) && fs.existsSync(defaultConfigSrc)) {
-                fs.copyFileSync(defaultConfigSrc, userConfigPath);
-            }
+            seedUserConfigFromLegacyOrDefault(defaultConfigSrc);
         } catch (e) { console.error('Failed to prepare user config:', e.message); }
         configPath = userConfigPath;
-        backendCwd = path.dirname(coralBinary);
+        backendCwd = path.dirname(kuraliBinary);
         backendEnv = process.env;
     }
     // Ensure DISPLAY is set for X11 injection (Linux only)
     if (!isWin) {
         backendEnv.DISPLAY = process.env.DISPLAY || ':0';
     }
-    backendProcess = spawn(coralBinary, [configPath], {
+    backendProcess = spawn(kuraliBinary, [configPath], {
         cwd: backendCwd,
         detached: false,
         stdio: ['ignore', 'pipe', 'ignore'], // Enable stdout pipe
@@ -664,7 +702,7 @@ function startBackend() {
                 pendingWhisperMs.push(whisperMs);
                 transcribingStartMs = null;
             } else {
-                console.warn('[Coral] INJECT_PENDING without TRANSCRIBING_START');
+                console.warn('[Kurali] INJECT_PENDING without TRANSCRIBING_START');
                 pendingWhisperMs.push(-1);
             }
             pendingInjectionStarts.push(Date.now());
@@ -680,7 +718,7 @@ function startBackend() {
                 const injectMs = Date.now() - t0;
                 appendDevTimingStats(-1, injectMs);
             } else {
-                console.warn('[Coral] INJECTION_DONE without matching INJECT_PENDING');
+                console.warn('[Kurali] INJECTION_DONE without matching INJECT_PENDING');
             }
             hideInjectingOverlay();
         } else if (trimmed === 'TRANSCRIBING_DONE') {
@@ -785,14 +823,14 @@ function showWelcomeWindow() {
 
   let triggerKeyDisplay = 'Ctrl';
   try {
-    const cfgPath = path.join(os.homedir(), '.coral', 'conf', 'config.json');
+    const cfgPath = USER_CONFIG_PATH;
     const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
     if (cfg.triggerKey) triggerKeyDisplay = cfg.triggerKey;
   } catch (_) {}
 
   const welcomeHtml = `<html><head><meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; script-src 'unsafe-inline'; connect-src https://fonts.googleapis.com https://fonts.gstatic.com; base-uri 'none'">
-<title>Coral</title><style>
+<title>Kurali</title><style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Inter',system-ui,sans-serif; height:100vh; overflow:hidden;
@@ -803,7 +841,7 @@ function showWelcomeWindow() {
     .w2 { bottom:-65%; height:100%; background:rgba(13,71,161,0.05); animation:sway 6s ease-in-out infinite reverse; }
     .w3 { bottom:-70%; height:100%; background:rgba(0,150,136,0.04); animation:sway 10s ease-in-out infinite; }
     @keyframes sway { 0%,100%{transform:translateX(-2%)} 50%{transform:translateX(2%)} }
-    .coral-shape { position:absolute; border-radius:50%; }
+    .kurali-shape { position:absolute; border-radius:50%; }
     .c1 { width:80px; height:80px; background:rgba(0,150,136,0.12); bottom:20px; right:40px; }
     .c2 { width:50px; height:50px; background:rgba(13,71,161,0.1); bottom:50px; right:100px; }
     .c3 { width:35px; height:35px; background:rgba(76,175,80,0.1); bottom:10px; right:160px; }
@@ -828,11 +866,11 @@ function showWelcomeWindow() {
   </style></head><body>
     <div class="scene">
       <div class="wave w1"></div><div class="wave w2"></div><div class="wave w3"></div>
-      <div class="coral-shape c1"></div><div class="coral-shape c2"></div>
-      <div class="coral-shape c3"></div><div class="coral-shape c4"></div><div class="coral-shape c5"></div>
+      <div class="kurali-shape c1"></div><div class="kurali-shape c2"></div>
+      <div class="kurali-shape c3"></div><div class="kurali-shape c4"></div><div class="kurali-shape c5"></div>
     </div>
     <div class="content">
-      <div class="brand">Coral</div>
+      <div class="brand">Kurali</div>
       <div class="version">${app.getVersion()}</div>
       <div class="tagline"><strong>Double tap</strong> trigger key (${triggerKeyDisplay}), <strong>speak</strong>, get the <strong>text</strong></div>
       <div class="bottom">
@@ -840,7 +878,7 @@ function showWelcomeWindow() {
         <button class="ok-btn" id="okBtn" onclick="window.close()">Got it</button>
       </div>
     </div>
-    <div class="copy">&copy; 2025 Coral Contributors</div>
+    <div class="copy">&copy; 2025 Kurali Contributors</div>
   </body></html>`;
   welcomeWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(welcomeHtml));
 }
@@ -894,7 +932,7 @@ app.whenReady().then(() => {
     console.error('Failed to create tray:', e.message);
   }
   if (!tray) {
-    dialog.showErrorBox('Coral', 'Could not create system tray icon. Ensure coral.png exists in coral-electron or logo folder.');
+    dialog.showErrorBox('Kurali', 'Could not create system tray icon. Ensure coral.png exists in coral-electron or logo folder.');
     app.quit();
     return;
   }
@@ -905,7 +943,7 @@ app.whenReady().then(() => {
     { type: 'separator' },
     { label: 'Quit', click: () => { stopBackend(); app.quit(); } },
   ]);
-  tray.setToolTip('Coral App');
+  tray.setToolTip('Kurali');
   tray.setContextMenu(contextMenu);
   showWelcomeWindow();
   startBackend();

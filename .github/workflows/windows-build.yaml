@@ -94,17 +94,17 @@ jobs:
       - name: Bundle EXE with required DLLs
         shell: pwsh
         run: |
-          $exe = Get-ChildItem -Path "build-win" -Filter "coral.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $exe) { throw "coral.exe not found under build-win" }
+          $exe = Get-ChildItem -Path "build-win" -Filter "kurali.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { throw "kurali.exe not found under build-win" }
 
           $ver = "$($env:APPVER)".Trim()
           $outDir = "coral-windows-x64-v$ver"
           New-Item -ItemType Directory -Path $outDir -Force | Out-Null
-          $exeName = "coral-$ver.exe"
+          $exeName = "kurali-$ver.exe"
           $exeDest = Join-Path $outDir $exeName
           Copy-Item -Path $exe.FullName -Destination $exeDest -Force
-          # Fix missing .exe: rename coral-* without extension to coral-*.exe
-          Get-ChildItem -Path $outDir -Filter "coral-*" | Where-Object { $_.Extension -ne ".exe" } | ForEach-Object {
+          # Fix missing .exe: rename kurali-* without extension to kurali-*.exe
+          Get-ChildItem -Path $outDir -Filter "kurali-*" | Where-Object { $_.Extension -ne ".exe" } | ForEach-Object {
             Rename-Item -Path $_.FullName -NewName $exeName -Force
             Write-Host "Renamed $($_.Name) to $exeName"
           }

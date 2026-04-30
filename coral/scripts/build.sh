@@ -47,8 +47,8 @@ cp -r "$ELECTRON_DIR/node_modules" "$APPDIR/"
 
 # Copy backend binary into AppDir
 mkdir -p "$APPDIR/usr/bin"
-cp ../coral/bin/coral "$APPDIR/usr/bin/"
-strip "$APPDIR/usr/bin/coral"
+cp "$BACKEND_DIR/bin/kurali" "$APPDIR/usr/bin/"
+strip "$APPDIR/usr/bin/kurali"
 
 #copy libraries needed for whisper
 mkdir -p "$APPDIR/usr/lib"
