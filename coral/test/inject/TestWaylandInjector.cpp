@@ -1,4 +1,4 @@
-#include "../src/WaylandInjector.h"
+#include "../../src/inject/WaylandInjector.h"
 #include <iostream>
 
 int main()

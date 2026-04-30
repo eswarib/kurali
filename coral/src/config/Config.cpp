@@ -17,6 +17,16 @@
 
 namespace fs = std::filesystem;
 
+#if defined(_WIN32)
+namespace {
+/** After copy_file from a read-only install dir, clear READONLY so the Electron UI can save. */
+void makeUserConfigWritable(const std::string& path)
+{
+    SetFileAttributesA(path.c_str(), FILE_ATTRIBUTE_NORMAL);
+}
+} // namespace
+#endif
+
 const std::string Config::WhisperModelNameSmallEnQ8 = "ggml-small.en-q8_0.bin";
 const std::string Config::WhisperModelNameSmallEn = "ggml-small.en.bin";
 const std::string Config::WhisperModelNameBaseEn = "ggml-base.en.bin";
@@ -90,7 +100,7 @@ void Config::loadFromFile()
     INFO("triggerMode:  [" + triggerMode + "]");
     doubleTapWindowMs = static_cast<uint32_t>(j.value("doubleTapWindowMs", 300));
     INFO("doubleTapWindowMs:  [" + std::to_string(doubleTapWindowMs) + "]");
-    recordWindowSeconds = j.value("recordWindowSeconds", 60);
+    recordWindowSeconds = j.value("recordWindowSeconds", 15);
     INFO("recordWindowSeconds:  [" + std::to_string(recordWindowSeconds) + "]");
     saveAudioToFolder = j.value("saveAudioToFolder", std::string());
     saveAudioToFolder = Utils::expandTilde(saveAudioToFolder);
@@ -106,27 +116,80 @@ std::string Config::getWhisperModelPath() const {
         configuredPath = whisperModelPath;
     }
 
-    // 1) Explicit config path (any location), if set and the file exists
+    // 1) Config path used as-is (absolute / relative / tilde-expanded).
     std::string expandedModelPath = Utils::expandTilde(configuredPath);
     if (!expandedModelPath.empty() && fs::exists(expandedModelPath))
     {
         return expandedModelPath;
     }
 
-    // 2) Only ~/.kurali/models (USERPROFILE\.kurali\models on Windows)
+    // 2) Build the ordered list of dirs to search for models. Same set is used
+    //    for the bare-filename lookup below and for the implicit fallback scan.
+    //    Order matters: ~/.coral/models (where the postinst symlinks land) is
+    //    checked first so user customizations win over the system bundle.
+    std::vector<fs::path> dirs;
     std::string homeDir = Utils::getHomeDir();
-    if (homeDir.empty())
-    {
-        ERROR("Could not resolve home directory for Whisper model path");
-        return expandedModelPath;
+    if (!homeDir.empty()) {
+        dirs.push_back(fs::path(homeDir) / ".coral/models");
+    }
+    #if defined(_WIN32)
+    char exePathWin[MAX_PATH];
+    DWORD got = GetModuleFileNameA(NULL, exePathWin, MAX_PATH);
+    if (got > 0 && got < MAX_PATH) {
+        fs::path exeDir = fs::path(exePathWin).parent_path();
+        dirs.push_back(exeDir / "model");
+        dirs.push_back(exeDir / "models");
+        dirs.push_back(exeDir / "resources" / "models");
+    }
+    if (const char* appData = std::getenv("APPDATA");      appData && *appData)      dirs.push_back(fs::path(appData)      / "Coral" / "models");
+    if (const char* localAppData = std::getenv("LOCALAPPDATA"); localAppData && *localAppData) dirs.push_back(fs::path(localAppData) / "Coral" / "models");
+    #else
+    if (const char* appdir = std::getenv("APPDIR"); appdir && *appdir) {
+        dirs.push_back(fs::path(appdir) / "usr/share/coral/models");
+    }
+    dirs.push_back(fs::path("/usr/share/coral/models"));
+    char exePath[4096];
+    ssize_t len = readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
+    if (len != -1) {
+        exePath[len] = '\0';
+        fs::path exeDir = fs::path(exePath).parent_path();
+        dirs.push_back(exeDir / "../share/coral/models");
+        dirs.push_back(exeDir / "models");
+    }
+    #endif
+
+    // 2a) If the configured value is a bare filename (no path separators), look
+    //     it up in each known dir. This is what the Electron UI saves when the
+    //     user picks a bundled/installed model from the dropdown.
+    auto isBareFilename = [](const std::string& s) {
+        if (s.empty()) return false;
+        if (s.find('/') != std::string::npos) return false;
+    #if defined(_WIN32)
+        if (s.find('\\') != std::string::npos) return false;
+    #endif
+        return true;
+    };
+    if (isBareFilename(configuredPath)) {
+        for (const auto& d : dirs) {
+            fs::path p = d / configuredPath;
+            if (fs::exists(p)) {
+                INFO("Resolved whisper model from configured filename: [" + p.string() + "]");
+                return p.string();
+            }
+        }
+        WARN("Configured whisperModelPath '" + configuredPath +
+             "' not found in any known model dir; falling back to implicit search");
     }
 
-    const fs::path modelsDir = fs::path(homeDir) / ".kurali" / "models";
-    const std::vector<std::string> candidates = {
-        (modelsDir / WhisperModelNameBaseEn).string(),
-        (modelsDir / WhisperModelNameSmallEn).string(),
-        (modelsDir / WhisperModelNameSmallEnQ8).string(),
+    // 3) Implicit fallback: try the known shipped model names in each dir.
+    //    Order: q8 (preferred default — fastest) -> small -> base.
+    std::vector<std::string> candidates;
+    auto addCandidatesInDir = [&](const fs::path& dir){
+        candidates.push_back((dir / WhisperModelNameSmallEnQ8).string());
+        candidates.push_back((dir / WhisperModelNameSmallEn).string());
+        candidates.push_back((dir / WhisperModelNameBaseEn).string());
     };
+    for (const auto& d : dirs) addCandidatesInDir(d);
 
     for (const auto& c : candidates)
     {
@@ -137,9 +200,36 @@ std::string Config::getWhisperModelPath() const {
         }
     }
 
-    const std::string fallback = (modelsDir / WhisperModelNameSmallEn).string();
-    ERROR("Whisper model not found in " + modelsDir.string()
-          + ". Expected ggml-base.en.bin, ggml-small.en.bin, or ggml-small.en-q8_0.bin (or run once with network so Kurali can download the small model).");
+    // Last-resort fallback path for the error log: where we *expect* the
+    // default model to be on a working install. Prefer q8 (the shipped default).
+    #if defined(_WIN32)
+    std::string fallback;
+    if (const char* appDataFB = std::getenv("APPDATA"); appDataFB && *appDataFB) {
+        fallback = (fs::path(appDataFB) / "Coral" / "models" / WhisperModelNameSmallEnQ8).string();
+    }
+    if (fallback.empty() || !fs::exists(fallback)) {
+        char exePathFB[MAX_PATH];
+        DWORD gotFB = GetModuleFileNameA(NULL, exePathFB, MAX_PATH);
+        if (gotFB > 0 && gotFB < MAX_PATH) {
+            fs::path exeDir = fs::path(exePathFB).parent_path();
+            fallback = (exeDir / "models" / WhisperModelNameSmallEnQ8).string();
+        }
+    }
+    #else
+    const char* appdirFB = std::getenv("APPDIR");
+    std::string fallback = (appdirFB && *appdirFB)
+        ? (fs::path(appdirFB) / "usr/share/coral/models" / WhisperModelNameSmallEnQ8).string()
+        : (fs::path("/usr/share/coral/models") / WhisperModelNameSmallEnQ8).string();
+    #endif
+
+    if (!fs::exists(fallback))
+    {
+        ERROR("Whisper model not found. Expected at: " + fallback);
+    }
+    else
+    {
+        INFO("Using fallback whisper model: [" + fallback + "]");
+    }
     return fallback;
 }
 
@@ -277,6 +367,10 @@ void Config::copyConfigFileOnFirstRun()
             throw std::runtime_error("Default config not found. Place config in exeDir/conf/config.json or coral/conf/");
         }
         fs::copy_file(defaultConfigPath, userConfigPath, fs::copy_options::overwrite_existing);
+        // Bundled config under Program Files may be read-only; copy_file can
+        // propagate FILE_ATTRIBUTE_READONLY to the user's profile, causing EPERM
+        // when the Electron UI saves settings. Normalize to a writable file.
+        makeUserConfigWritable(userConfigPath);
 #else
         const char* appdir = std::getenv("APPDIR");
         std::string defaultConfigPath = appdir

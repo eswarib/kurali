@@ -25,19 +25,16 @@ if "%KURALI_EXE%"=="" (
 
 copy /Y "%KURALI_EXE%" "%OUT_DIR%\kurali-%APPVER%.exe"
 
-REM conf/ and model/ next to exe (backend looks for exeDir/conf and exeDir/model)
+REM conf/ next to exe (backend looks for exeDir/conf).
+REM Models are NOT bundled here. Coral's Electron frontend downloads the
+REM default ggml-small.en-q8_0.bin into %USERPROFILE%\.coral\models on first
+REM launch. This keeps the bundle small and avoids duplicating model files
+REM between the install dir and the user's home dir.
 mkdir "%OUT_DIR%\conf" 2>nul
-mkdir "%OUT_DIR%\model" 2>nul
 if exist "%REPO_ROOT%\coral\conf\config-windows.json" (
     copy /Y "%REPO_ROOT%\coral\conf\config-windows.json" "%OUT_DIR%\conf\config.json"
 ) else if exist "%REPO_ROOT%\coral\conf\config.json" (
     copy /Y "%REPO_ROOT%\coral\conf\config.json" "%OUT_DIR%\conf\config.json"
-)
-if exist "%REPO_ROOT%\models\ggml-small.en.bin" (
-    copy /Y "%REPO_ROOT%\models\ggml-small.en.bin" "%OUT_DIR%\model\"
-) else (
-    echo Downloading ggml-small.en.bin to %OUT_DIR%\model\...
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin' -OutFile '%OUT_DIR%\model\ggml-small.en.bin' -UseBasicParsing"
 )
 
 REM VC++ CRT from vswhere

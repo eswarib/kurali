@@ -1,5 +1,5 @@
-#include "../src/concurrentQueue.h"
-#include "../src/AudioEvent.h"
+#include "../../src/transcribe/concurrentQueue.h"
+#include "../../src/record/AudioEvent.h"
 #include <cassert>
 #include <iostream>
 #include <memory>

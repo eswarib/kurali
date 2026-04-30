@@ -63,7 +63,7 @@ private:
     std::string whisperLanguage;
     std::string triggerMode;   // "pushToTalk" | "continuous"
     uint32_t doubleTapWindowMs{300};
-    int recordWindowSeconds{5};
+    int recordWindowSeconds{15};
     std::string saveAudioToFolder;
     float audioAmplification{2.5f};
     float noiseGateThreshold{0.001f};

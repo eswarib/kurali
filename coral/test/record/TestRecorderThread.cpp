@@ -1,10 +1,10 @@
-#include "../src/RecorderThread.h"
-#include "../src/Config.h"
-#include "../src/concurrentQueue.h"
-#include "../src/AudioEvent.h"
-#include "../src/RecorderEvent.h"
-#include "../src/StartRecordEvent.h"
-#include "../src/StopRecordEvent.h"
+#include "../../src/record/RecorderThread.h"
+#include "../../src/config/Config.h"
+#include "../../src/transcribe/concurrentQueue.h"
+#include "../../src/record/AudioEvent.h"
+#include "../../src/record/RecorderEvent.h"
+#include "../../src/record/StartRecordEvent.h"
+#include "../../src/record/StopRecordEvent.h"
 #include <cassert>
 #include <iostream>
 #include <chrono>
@@ -13,7 +13,7 @@
 
 void testRecorderThread()
 {
-    Config config("test_config.json");
+    Config config("test/config/test_config.json");
     ConcurrentQueue<std::shared_ptr<AudioEvent>> audioQueue;
     ConcurrentQueue<std::shared_ptr<RecorderEvent>> recorderEventQueue;
 

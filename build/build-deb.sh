@@ -174,17 +174,31 @@ cp "$BACKEND_DIR/conf/config-linux.json" "$STAGE/usr/share/coral/conf/config.jso
 MODEL_DIR="$STAGE/usr/share/coral/models"
 mkdir -p "$MODEL_DIR"
 MODELS_SRC="$REPO_ROOT/models"
-SMALL_MODEL="ggml-small.en.bin"
-SMALL_MODEL_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin"
-if [ -f "$MODELS_SRC/$SMALL_MODEL" ]; then
-    cp "$MODELS_SRC/$SMALL_MODEL" "$MODEL_DIR/"
-    echo "Copied $SMALL_MODEL from $MODELS_SRC"
-elif [ ! -f "$MODEL_DIR/$SMALL_MODEL" ]; then
-    echo "Downloading $SMALL_MODEL from Hugging Face..."
-    wget -O "$MODEL_DIR/$SMALL_MODEL" "$SMALL_MODEL_URL"
-else
-    echo "$SMALL_MODEL already staged."
-fi
+
+# Explicit allowlist of models to bundle in the .deb. Any other .bin sitting
+# in $MODELS_SRC (e.g. distil, custom, large variants) is intentionally NOT
+# packaged. For each entry: copy from $MODELS_SRC if present, otherwise
+# download from the canonical whisper.cpp Hugging Face repo.
+HF_BASE="https://huggingface.co/ggerganov/whisper.cpp/resolve/main"
+BUNDLED_MODELS=(
+    "ggml-small.en.bin"
+    "ggml-small.en-q8_0.bin"
+)
+
+for m in "${BUNDLED_MODELS[@]}"; do
+    dst="$MODEL_DIR/$m"
+    if [ -f "$dst" ]; then
+        echo "Already staged: $m"
+        continue
+    fi
+    if [ -f "$MODELS_SRC/$m" ]; then
+        cp "$MODELS_SRC/$m" "$dst"
+        echo "Bundled model from $MODELS_SRC: $m"
+    else
+        echo "Downloading $m from Hugging Face..."
+        wget -O "$dst" "$HF_BASE/$m"
+    fi
+done
 
 mkdir -p "$STAGE/usr/share/coral"
 cp "$LOGO" "$STAGE/usr/share/coral/coral.png"
@@ -260,6 +274,37 @@ set -e
 if [ "$1" = "configure" ]; then
   gtk-update-icon-cache -f -t /usr/share/icons/hicolor 2>/dev/null || true
   update-desktop-database /usr/share/applications 2>/dev/null || true
+
+  # Create ~/.coral/models for the installing user(s) and symlink the bundled
+  # models into it. The Electron frontend reads its dropdown from
+  # ~/.coral/models, so the symlinks make every bundled model visible there.
+  # This is best-effort at install time; main.js also seeds on startup as a
+  # safety net for users not handled here (e.g. fresh accounts created later).
+  SRC_MODELS_DIR=/opt/coral/usr/share/coral/models
+  link_models_for_user() {
+    _u="$1"
+    _h=$(getent passwd "$_u" 2>/dev/null | cut -d: -f6)
+    [ -n "$_h" ] || return 0
+    [ -d "$_h" ] || return 0
+    _t="$_h/.coral/models"
+    mkdir -p "$_t" 2>/dev/null || return 0
+    for _f in "$SRC_MODELS_DIR"/*.bin; do
+      [ -f "$_f" ] || continue
+      _n=$(basename "$_f")
+      [ -e "$_t/$_n" ] || [ -L "$_t/$_n" ] || ln -s "$_f" "$_t/$_n"
+    done
+    _g=$(id -gn "$_u" 2>/dev/null || echo "$_u")
+    chown -R "$_u:$_g" "$_h/.coral" 2>/dev/null || true
+  }
+
+  if [ -d "$SRC_MODELS_DIR" ]; then
+    if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+      link_models_for_user "$SUDO_USER" || true
+    elif [ -n "${PKEXEC_UID:-}" ]; then
+      _pu=$(getent passwd "$PKEXEC_UID" 2>/dev/null | cut -d: -f1)
+      [ -n "$_pu" ] && link_models_for_user "$_pu" || true
+    fi
+  fi
 fi
 exit 0
 POSTINST

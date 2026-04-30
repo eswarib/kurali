@@ -1,4 +1,4 @@
-#include "../src/TextUtils.h"
+#include "../../src/transcribe/TextUtils.h"
 #include <cassert>
 #include <string>
 

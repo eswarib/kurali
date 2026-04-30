@@ -1,5 +1,6 @@
 #include "Config.h"
 #include "Utils.h"
+#include "AdaptiveThreadController.h"
 #include "concurrentQueue.h"
 #include "AudioEvent.h"
 #include "RecorderEvent.h"
@@ -92,7 +93,7 @@ int main(int argc, char* argv[])
 
         Logger::getInstance().init(config.getLogFilePath(), config.getDebugLevel());
 
-        Config::downloadModelIfNotPresent();
+        AdaptiveThreadController::getInstance().init();
 
         INFO("Reading configuration from: " + configPath);
         INFO("Kurali is up and running");

@@ -36,6 +36,15 @@ if(UNIX)
 	pkg_check_modules(SNDFILE sndfile REQUIRED)
 
 	target_include_directories(kurali PRIVATE
+		${CMAKE_CURRENT_LIST_DIR}/src
+		${CMAKE_CURRENT_LIST_DIR}/src/config
+		${CMAKE_CURRENT_LIST_DIR}/src/record
+		${CMAKE_CURRENT_LIST_DIR}/src/transcribe
+		${CMAKE_CURRENT_LIST_DIR}/src/inject
+		${CMAKE_CURRENT_LIST_DIR}/src/stats
+		${CMAKE_CURRENT_LIST_DIR}/src/perf
+		${CMAKE_CURRENT_LIST_DIR}/../whispercpp/include
+		${CMAKE_CURRENT_LIST_DIR}/../whispercpp/ggml/include
 		${GLIB2_INCLUDE_DIRS}
 		${GIO2_INCLUDE_DIRS}
 		${PORTAL_INCLUDE_DIRS}
@@ -99,11 +108,11 @@ else() # WIN32
     # Collect sources and exclude Linux-only files
     file(GLOB_RECURSE CORAL_SOURCES "src/*.cpp")
     # Exclude Linux-only sources from Windows build
-    list(FILTER CORAL_SOURCES EXCLUDE REGEX "/src/X11.*\\.cpp$")
-    list(FILTER CORAL_SOURCES EXCLUDE REGEX "/src/Wayland.*\\.cpp$")
-    list(FILTER CORAL_SOURCES EXCLUDE REGEX "/src/A11yInjector\\.cpp$")
-    list(FILTER CORAL_SOURCES EXCLUDE REGEX "/src/X11WindowUtils\\.cpp$")
-    list(FILTER CORAL_SOURCES EXCLUDE REGEX "/src/UInputInjector\\.cpp$")
+    list(FILTER CORAL_SOURCES EXCLUDE REGEX "/src/.*/X11.*\\.cpp$")
+    list(FILTER CORAL_SOURCES EXCLUDE REGEX "/src/.*/Wayland.*\\.cpp$")
+    list(FILTER CORAL_SOURCES EXCLUDE REGEX "/src/.*/A11yInjector\\.cpp$")
+    list(FILTER CORAL_SOURCES EXCLUDE REGEX "/src/.*/X11WindowUtils\\.cpp$")
+    list(FILTER CORAL_SOURCES EXCLUDE REGEX "/src/.*/UInputInjector\\.cpp$")
 
     add_executable(kurali ${CORAL_SOURCES})
 
@@ -256,7 +265,15 @@ else() # WIN32
     endif()
 
     # whisper/ggml headers (optional if using system installs)
+<<<<<<< HEAD
     target_include_directories(kurali PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}/src
+        ${CMAKE_CURRENT_LIST_DIR}/src/config
+        ${CMAKE_CURRENT_LIST_DIR}/src/record
+        ${CMAKE_CURRENT_LIST_DIR}/src/transcribe
+        ${CMAKE_CURRENT_LIST_DIR}/src/inject
+        ${CMAKE_CURRENT_LIST_DIR}/src/stats
+        ${CMAKE_CURRENT_LIST_DIR}/src/perf
         ${CMAKE_CURRENT_LIST_DIR}/../whispercpp/include
         ${CMAKE_CURRENT_LIST_DIR}/../whispercpp/ggml/include
     )

@@ -1,5 +1,5 @@
-#include "../src/DoubleTapKeyDetector.h"
-#include "../src/KeyDetector.h"
+#include "../../src/record/DoubleTapKeyDetector.h"
+#include "../../src/record/KeyDetector.h"
 #include <cassert>
 #include <iostream>
 #include <thread>
