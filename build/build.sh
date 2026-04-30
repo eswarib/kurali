@@ -89,10 +89,9 @@ if [ ! -d "$BACKEND_DIR" ]; then
     exit 1
 fi
 
-if [ ! -d "$WHISPER_DIR" ]; then
-    echo "Error: whisper.cpp directory not found: $WHISPER_DIR"
-    echo "Clone it with: git clone https://github.com/ggerganov/whisper.cpp.git $WHISPER_DIR"
-    exit 1
+if [ ! -f "$WHISPER_DIR/CMakeLists.txt" ]; then
+    echo "whisper.cpp not found — cloning into $WHISPER_DIR ..."
+    git clone --depth 1 https://github.com/ggerganov/whisper.cpp.git "$WHISPER_DIR"
 fi
 
 # Pull version info from package.json

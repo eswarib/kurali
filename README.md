@@ -19,6 +19,13 @@ It runs entirely on your device.
 
 🚀 Build Instructions
 
+**Dependency:** Builds use [whisper.cpp](https://github.com/ggerganov/whisper.cpp) at **`kurali/whisper.cpp`**. The scripts below **clone it automatically** if it’s missing (`git` + network). To vendor it yourself:
+
+```bash
+cd kurali
+git clone --depth 1 https://github.com/ggerganov/whisper.cpp.git whisper.cpp
+```
+
 **AppImage** (same layout as release artifacts):
 
 ```bash
@@ -32,10 +39,10 @@ bash build.sh
 cd kurali/build
 bash build-deb.sh amd64    # Intel/AMD 64-bit (default arch if omitted)
 # bash build-deb.sh arm64  # ARM64 — run on aarch64, or CI; use `KURALI_DEB_FRESH_NPM=1` (or legacy `CORAL_DEB_FRESH_NPM=1`) if switching arch after a prior npm install
-sudo apt install ./Coral-*_amd64.deb   # or *_arm64.deb
+sudo apt install ./Kurali-*_amd64.deb   # or *_arm64.deb
 ```
 
-Filenames: `Coral-<version>_amd64.deb` / `Coral-<version>_arm64.deb` (version from `coral-electron/package.json`).
+Filenames: `Kurali-<version>_amd64.deb` / `Kurali-<version>_arm64.deb` (version from `coral-electron/package.json`).
 
 **Prebuilt installers** from [GitHub Releases](https://github.com/eswarib/kurali/releases):
 
@@ -65,7 +72,7 @@ Check the [releases](https://github.com/eswarib/kurali/releases) page for versio
 
 You can customize settings in the app.
 
-**Model path:** Download any Whisper model compatible with whisper.cpp (e.g. base.en, small, medium), set its path in configuration — Kurali resolves common locations.
+**Model path:** If `whisperModelPath` is set in config and the file exists, that path is used. Otherwise Kurali only looks under **`~/.kurali/models/`** for `ggml-base.en.bin`, `ggml-small.en.bin`, or `ggml-small.en-q8_0.bin`. On each startup, if none of those exist there, **`ggml-small.en.bin`** is downloaded from Hugging Face (requires **`curl`** or **`wget`** on your PATH).
 
 **Hotkey:** Defaults vary by shipped config; open Settings to see or change your trigger key and mode.
 

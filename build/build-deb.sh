@@ -5,7 +5,7 @@
 #
 # Usage: ./build-deb.sh [amd64|arm64]
 #   default: amd64
-#   Output: $REPO_ROOT/Coral-<version>_<arch>.deb
+#   Output: $REPO_ROOT/Kurali-<version>_<arch>.deb
 #
 # Environment:
 #   KURALI_DEB_SKIP_APT=1   — skip apt install (e.g. CI already installed deps)
@@ -103,8 +103,8 @@ if [ ! -d "$ELECTRON_DIR" ] || [ ! -d "$BACKEND_DIR" ]; then
 fi
 
 if [ ! -f "$WHISPER_DIR/CMakeLists.txt" ]; then
-    echo "Error: whisper.cpp not found at $WHISPER_DIR (clone: git clone https://github.com/ggerganov/whisper.cpp.git whisper.cpp)"
-    exit 1
+    echo "whisper.cpp not found — cloning into $WHISPER_DIR ..."
+    git clone --depth 1 https://github.com/ggerganov/whisper.cpp.git "$WHISPER_DIR"
 fi
 
 APP_VERSION="$(node -p "require('$ELECTRON_DIR/package.json').version")"
@@ -265,7 +265,7 @@ exit 0
 POSTINST
 chmod 755 "$DEB_ROOT/DEBIAN/postinst"
 
-OUT_DEB="$REPO_ROOT/Coral-${APP_VERSION}_${DEB_ARCH}.deb"
+OUT_DEB="$REPO_ROOT/Kurali-${APP_VERSION}_${DEB_ARCH}.deb"
 rm -f "$OUT_DEB"
 
 echo "Building .deb → $OUT_DEB"

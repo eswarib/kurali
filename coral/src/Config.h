@@ -15,8 +15,8 @@ public:
     static constexpr int DefaultAudioSampleRate = 16000;
     static constexpr int DefaultAudioChannels = 1;
     static constexpr const char* DefaultTriggerKey = "Fn";
-    static constexpr const char* DefaultWhisperModelPath = "~/usr/share/coral/models/ggml-base.en.bin";
-    static constexpr const char* WhisperModelURLSmallQ8 = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en-q8_0.bin";
+    static constexpr const char* DefaultWhisperModelPath = "~/.kurali/models/ggml-small.en.bin";
+    static constexpr const char* WhisperModelURLSmallEn = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin";
     static const std::string WhisperModelNameSmallEnQ8;
     static const std::string WhisperModelNameSmallEn;
     static const std::string WhisperModelNameBaseEn;

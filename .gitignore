@@ -1,6 +1,9 @@
 
 node_modules/
 
+# Local clone (CI clones during build; see README)
+whisper.cpp/
+
 # Deb packaging staging (build/build-deb.sh)
 build/coral.deb.stage*/
 coral.appdir/

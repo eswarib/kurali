@@ -3,8 +3,47 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Kurali — offline dictation for Linux and Windows. Private, fast speech-to-text with Whisper. No cloud, no tracking.">
-  <title>Kurali — Dictation App</title>
+  <meta name="description" content="Kurali — free, private dictation for Linux and Windows. Local Whisper speech-to-text. No cloud, no tracking.">
+  <title>Kurali — Free Private Dictation for Linux &amp; Windows</title>
+  <link rel="canonical" href="https://eswarib.github.io/kurali/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Kurali">
+  <meta property="og:title" content="Kurali — Free private dictation for Linux &amp; Windows">
+  <meta property="og:description" content="Offline dictation with Whisper. Private, fast speech-to-text. No cloud, no tracking. AppImage, .deb, and Windows installers.">
+  <meta property="og:url" content="https://eswarib.github.io/kurali/">
+  <meta property="og:image" content="https://eswarib.github.io/kurali/coral-logo.png">
+  <meta property="og:image:alt" content="Kurali logo">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Kurali — Free private dictation for Linux &amp; Windows">
+  <meta name="twitter:description" content="Offline dictation with Whisper. No cloud, no tracking.">
+  <meta name="twitter:image" content="https://eswarib.github.io/kurali/coral-logo.png">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Kurali",
+    "description": "Free, private offline dictation for Linux and Windows using Whisper. No cloud, no tracking.",
+    "applicationCategory": "UtilitiesApplication",
+    "operatingSystem": "Linux, Windows",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "license": "https://github.com/eswarib/kurali/blob/main/LICENSE",
+    "downloadUrl": "https://github.com/eswarib/kurali/releases/latest",
+    "url": "https://eswarib.github.io/kurali/",
+    "codeRepository": "https://github.com/eswarib/kurali",
+    "screenshot": "https://eswarib.github.io/kurali/coral-logo.png",
+    "author": {
+      "@type": "Person",
+      "name": "Eswari Mathialagan"
+    },
+    "sameAs": [
+      "https://github.com/eswarib/kurali"
+    ]
+  }
+  </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Caveat:wght@400;600;700&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -237,16 +276,29 @@
     a.button.button-download-kurali {
       font-family: 'Inter', sans-serif;
       font-weight: 600;
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
       background: linear-gradient(145deg, var(--primary-bright), var(--primary));
       color: white;
-      padding: 0.75rem 1.5rem;
+      padding: 0.75rem 1.25rem;
       border-radius: 0.5rem;
       text-decoration: none;
       box-shadow:
         0 2px 12px var(--glow-soft),
         0 1px 2px rgba(19, 78, 74, 0.12);
       transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }
+
+    a.button.button-download-kurali .hero-dl-os-emoji {
+      font-size: 1.2em;
+      line-height: 1;
+    }
+
+    a.button.button-download-kurali .hero-dl-os-svg {
+      width: 1.15em;
+      height: 1.15em;
+      flex-shrink: 0;
     }
 
     a.button.button-download-kurali:hover {
@@ -268,8 +320,16 @@
       flex-wrap: wrap;
       align-items: center;
       justify-content: center;
-      gap: 0.35rem 0.5rem;
+      gap: 0.5rem 0.75rem;
       margin: 0 auto 1.5rem;
+    }
+
+    .hero-download-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 0.65rem;
     }
 
     .hero-point-hand {
@@ -1077,13 +1137,30 @@
     <img src="coral-logo.png" alt="Kurali logo">
     <h1>Speak with Kurali</h1>
     <p class="subtitle">
-      Offline dictation app for Linux &amp; Windows
-      <span class="subtitle-line2">Private, fast speech-to-text powered by Whisper. No cloud, no tracking.</span>
+      Free, private dictation app for Linux &amp; Windows
+      <span class="subtitle-line2">Fast, local speech-to-text powered by Whisper. No cloud, no tracking.</span>
     </p>
 
     <div class="hero-download-cta">
       <span class="hero-point-hand" aria-hidden="true" title="This way!">👉</span>
-      <a href="https://github.com/eswarib/kurali/releases/latest" class="button button-download-kurali">Download Kurali</a>
+      <div class="hero-download-row">
+        <a href="https://github.com/eswarib/kurali/releases/latest"
+           class="button button-download-kurali"
+           title="Linux — AppImage, .deb, and other builds on the Releases page"
+           aria-label="Download Kurali for Linux (releases page)">
+          <span>Kurali</span>
+          <span class="hero-dl-os-emoji" aria-hidden="true">🐧</span>
+        </a>
+        <a href="https://github.com/eswarib/kurali/releases/latest"
+           class="button button-download-kurali"
+           title="Windows — MSI, portable, and other builds on the Releases page"
+           aria-label="Download Kurali for Windows (releases page)">
+          <span>Kurali</span>
+          <svg class="hero-dl-os-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path fill="currentColor" d="M3 3h9v9H3V3zm9 0h9v9h-9V3zM3 12h9v9H3v-9zm9 0h9v9h-9v-9z"/>
+          </svg>
+        </a>
+      </div>
     </div>
 
     <div class="hero-demo" role="region" aria-label="Animated demo: double-tap your hotkey, speak, text appears where you type">

@@ -92,6 +92,8 @@ int main(int argc, char* argv[])
 
         Logger::getInstance().init(config.getLogFilePath(), config.getDebugLevel());
 
+        Config::downloadModelIfNotPresent();
+
         INFO("Reading configuration from: " + configPath);
         INFO("Kurali is up and running");
         ConcurrentQueue<std::shared_ptr<AudioEvent>> audioEventQueue;

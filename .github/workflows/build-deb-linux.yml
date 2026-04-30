@@ -65,5 +65,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kurali-deb-${{ matrix.arch }}
-          path: Coral-*_${{ matrix.arch }}.deb
+          path: Kurali-*_${{ matrix.arch }}.deb
           if-no-files-found: error
