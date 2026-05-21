@@ -265,7 +265,6 @@ else() # WIN32
     endif()
 
     # whisper/ggml headers (optional if using system installs)
-<<<<<<< HEAD
     target_include_directories(kurali PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/src
         ${CMAKE_CURRENT_LIST_DIR}/src/config

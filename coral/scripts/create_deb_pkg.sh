@@ -1,10 +1,10 @@
-fpm -s dir -t deb -n coral -v 1.0.0 \
+fpm -s dir -t deb -n kurali -v 1.0.0 \
     --after-install scripts/postinstall.sh \
     --depends "libportaudio2" \
     --depends "libsndfile1" \
     --depends "libx11-6" \
     bin/kurali=/usr/bin/kurali \
-    ../whispercpp/lib/libwhisper.so.1.7.5=/opt/coral/lib/libwhisper.so.1.7.5 \
-    ../whispercpp/lib/libwhisper.so.1.7.5=/opt/coral/lib/libwhisper.so.1 \
-    ../whispercpp/lib/libwhisper.so.1.7.5=/opt/coral/lib/libwhisper.so \
-    conf/config-linux.json=/usr/share/coral/conf/config.json
+    ../whispercpp/lib/libwhisper.so.1.7.5=/opt/kurali/lib/libwhisper.so.1.7.5 \
+    ../whispercpp/lib/libwhisper.so.1.7.5=/opt/kurali/lib/libwhisper.so.1 \
+    ../whispercpp/lib/libwhisper.so.1.7.5=/opt/kurali/lib/libwhisper.so \
+    conf/config-linux.json=/usr/share/kurali/conf/config.json

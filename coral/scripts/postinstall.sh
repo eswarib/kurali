@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-MODEL_DIR="/usr/share/coral/models"
+MODEL_DIR="/usr/share/kurali/models"
 mkdir -p "$MODEL_DIR"
 
 # Download models if not already present
@@ -28,7 +28,7 @@ for userhome in /home/*; do
         target="$userhome/.kurali/conf"
         mkdir -p "$target"
         if [ ! -f "$target/config.json" ]; then
-            cp /usr/share/coral/conf/config.json "$target/config.json"
+            cp /usr/share/kurali/conf/config.json "$target/config.json"
             chown $(basename "$userhome"):$(basename "$userhome") "$target/config.json"
             echo "Copied config.json to $target/config.json"
         fi
@@ -37,14 +37,14 @@ done
 
 set -e
 
-LIBDIR="/opt/coral/lib"
+LIBDIR="/opt/kurali/lib"
 
 # Create symlinks
 ln -sf libwhisper.so.1.7.5 "$LIBDIR/libwhisper.so.1"
 ln -sf libwhisper.so.1.7.5 "$LIBDIR/libwhisper.so"
 
 # Add to ld.so.conf if needed
-echo "$LIBDIR" > /etc/ld.so.conf.d/coral.conf
+echo "$LIBDIR" > /etc/ld.so.conf.d/kurali.conf
 ldconfig
 
 # Also handle root user
@@ -53,7 +53,7 @@ ldconfig
 #    target="$userhome/.kurali/conf"
 #    mkdir -p "$target"
 #    if [ ! -f "$target/config.json" ]; then
-#        cp /usr/share/coral/conf/config.json "$target/config.json"
+#        cp /usr/share/kurali/conf/config.json "$target/config.json"
 #        chown "$SUDO_USER":"$SUDO_USER" "$target/config.json"
 #          echo "Copied config.json to $target/config.json"
 #    fi

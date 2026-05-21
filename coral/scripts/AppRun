@@ -9,11 +9,29 @@ export LD_LIBRARY_PATH="$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
 export ELECTRON_DISABLE_SANDBOX=1
 export ELECTRON_ENABLE_LOGGING=0
 
+# Same behavior as packaged /usr/bin/kurali: return to shell when started from a TTY.
+electron_bin=""
 if [ -x "./node_modules/electron/dist/electron" ]; then
-    ./node_modules/electron/dist/electron . "$@" 2>/dev/null
+    electron_bin="./node_modules/electron/dist/electron"
 elif [ -x "./node_modules/.bin/electron" ]; then
-    ./node_modules/.bin/electron . "$@" 2>/dev/null
-else
+    electron_bin="./node_modules/.bin/electron"
+fi
+if [ -z "$electron_bin" ]; then
     echo "No Electron runtime found!"
     exit 1
 fi
+
+if [ -n "${KURALI_FOREGROUND:-}" ]; then
+    exec "$electron_bin" . "$@"
+fi
+
+if [ -t 0 ]; then
+    if command -v setsid >/dev/null 2>&1; then
+        setsid -f "$electron_bin" . "$@" >/dev/null 2>&1 </dev/null
+    else
+        nohup "$electron_bin" . "$@" >/dev/null 2>&1 </dev/null &
+    fi
+    exit 0
+fi
+
+exec "$electron_bin" . "$@"

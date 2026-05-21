@@ -125,11 +125,12 @@ std::string Config::getWhisperModelPath() const {
 
     // 2) Build the ordered list of dirs to search for models. Same set is used
     //    for the bare-filename lookup below and for the implicit fallback scan.
-    //    Order matters: ~/.coral/models (where the postinst symlinks land) is
-    //    checked first so user customizations win over the system bundle.
+    //    Order matters: ~/.kurali/models checked first where postinst/seeding
+    //    land bundled models or user copies; ~/.coral/models for legacy setups.
     std::vector<fs::path> dirs;
     std::string homeDir = Utils::getHomeDir();
     if (!homeDir.empty()) {
+        dirs.push_back(fs::path(homeDir) / ".kurali/models");
         dirs.push_back(fs::path(homeDir) / ".coral/models");
     }
     #if defined(_WIN32)
@@ -145,14 +146,17 @@ std::string Config::getWhisperModelPath() const {
     if (const char* localAppData = std::getenv("LOCALAPPDATA"); localAppData && *localAppData) dirs.push_back(fs::path(localAppData) / "Coral" / "models");
     #else
     if (const char* appdir = std::getenv("APPDIR"); appdir && *appdir) {
+        dirs.push_back(fs::path(appdir) / "usr/share/kurali/models");
         dirs.push_back(fs::path(appdir) / "usr/share/coral/models");
     }
+    dirs.push_back(fs::path("/usr/share/kurali/models"));
     dirs.push_back(fs::path("/usr/share/coral/models"));
     char exePath[4096];
     ssize_t len = readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
     if (len != -1) {
         exePath[len] = '\0';
         fs::path exeDir = fs::path(exePath).parent_path();
+        dirs.push_back(exeDir / "../share/kurali/models");
         dirs.push_back(exeDir / "../share/coral/models");
         dirs.push_back(exeDir / "models");
     }
@@ -218,8 +222,15 @@ std::string Config::getWhisperModelPath() const {
     #else
     const char* appdirFB = std::getenv("APPDIR");
     std::string fallback = (appdirFB && *appdirFB)
-        ? (fs::path(appdirFB) / "usr/share/coral/models" / WhisperModelNameSmallEnQ8).string()
-        : (fs::path("/usr/share/coral/models") / WhisperModelNameSmallEnQ8).string();
+        ? (fs::path(appdirFB) / "usr/share/kurali/models" / WhisperModelNameSmallEnQ8).string()
+        : (fs::path("/usr/share/kurali/models") / WhisperModelNameSmallEnQ8).string();
+    if (!fs::exists(fallback)) {
+        std::string alt = (appdirFB && *appdirFB)
+            ? (fs::path(appdirFB) / "usr/share/coral/models" / WhisperModelNameSmallEnQ8).string()
+            : (fs::path("/usr/share/coral/models") / WhisperModelNameSmallEnQ8).string();
+        if (fs::exists(alt))
+            fallback = alt;
+    }
     #endif
 
     if (!fs::exists(fallback))
@@ -374,8 +385,8 @@ void Config::copyConfigFileOnFirstRun()
 #else
         const char* appdir = std::getenv("APPDIR");
         std::string defaultConfigPath = appdir
-            ? std::string(appdir) + "/usr/share/coral/config/config.json"
-            : "/usr/share/coral/config/config.json";
+            ? std::string(appdir) + "/usr/share/kurali/conf/config.json"
+            : "/usr/share/kurali/conf/config.json";
 
         fs::copy_file(defaultConfigPath, userConfigPath, fs::copy_options::overwrite_existing);
 

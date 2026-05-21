@@ -55,12 +55,12 @@ mkdir -p "$APPDIR/usr/lib"
 sh ../coral/scripts/collect-libs.sh
 
 #copy config
-mkdir -p "$APPDIR/usr/share/coral/conf"
-cp ../coral/conf/config-linux.json "$APPDIR/usr/share/coral/conf/config.json"
+mkdir -p "$APPDIR/usr/share/kurali/conf"
+cp ../coral/conf/config-linux.json "$APPDIR/usr/share/kurali/conf/config.json"
 
 #copy models
-mkdir -p "$APPDIR/usr/share/coral/models"
-cp ../coral/models/ggml-base.en.bin "$APPDIR/usr/share/coral/models/ggml-base.en.bin"
+mkdir -p "$APPDIR/usr/share/kurali/models"
+cp ../coral/models/ggml-base.en.bin "$APPDIR/usr/share/kurali/models/ggml-base.en.bin"
 
 # Copy icons, desktop file, and AppRun
 cp "./coral.desktop" "$APPDIR/"

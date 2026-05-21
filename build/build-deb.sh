@@ -1,7 +1,7 @@
 #!/bin/bash
 # Build a self-contained .deb with the same layout as the AppImage staging
 #   (Electron + kurali backend + whisper/coral libs from collect-libs + config + bundled model).
-# Installs under /opt/coral — no FUSE, no AppImage.
+# Installs under /opt/kurali — no FUSE, no AppImage (bundled data under usr/share/kurali/).
 #
 # Usage: ./build-deb.sh [amd64|arm64]
 #   default: amd64
@@ -168,10 +168,10 @@ mkdir -p "$STAGE/usr/lib"
 cp -r "$BACKEND_DIR/lib/"* "$STAGE/usr/lib/"
 bash "$BACKEND_DIR/scripts/collect-libs.sh" "$BACKEND_DIR/bin/kurali" "$STAGE/usr/lib"
 
-mkdir -p "$STAGE/usr/share/coral/conf"
-cp "$BACKEND_DIR/conf/config-linux.json" "$STAGE/usr/share/coral/conf/config.json"
+mkdir -p "$STAGE/usr/share/kurali/conf"
+cp "$BACKEND_DIR/conf/config-linux.json" "$STAGE/usr/share/kurali/conf/config.json"
 
-MODEL_DIR="$STAGE/usr/share/coral/models"
+MODEL_DIR="$STAGE/usr/share/kurali/models"
 mkdir -p "$MODEL_DIR"
 MODELS_SRC="$REPO_ROOT/models"
 
@@ -200,38 +200,59 @@ for m in "${BUNDLED_MODELS[@]}"; do
     fi
 done
 
-mkdir -p "$STAGE/usr/share/coral"
-cp "$LOGO" "$STAGE/usr/share/coral/coral.png"
+mkdir -p "$STAGE/usr/share/kurali"
+cp "$LOGO" "$STAGE/usr/share/kurali/coral.png"
 cp "$LOGO" "$STAGE/coral.png"
 mkdir -p "$STAGE/node_modules/electron/dist/resources"
 cp "$LOGO" "$STAGE/node_modules/electron/dist/resources/coral.png"
 cp -r "$ELECTRON_DIR/icons" "$STAGE/"
 cp -r "$ELECTRON_DIR/icons" "$STAGE/node_modules/electron/dist/resources/"
-cp -r "$ELECTRON_DIR/icons" "$STAGE/usr/share/coral/"
+cp -r "$ELECTRON_DIR/icons" "$STAGE/usr/share/kurali/"
 
 # ── Assemble .deb filesystem ────────────────────────────────────────────────
-PKG_NAME="coral_${APP_VERSION}_${DEB_ARCH}"
+PKG_NAME="kurali_${APP_VERSION}_${DEB_ARCH}"
 DEB_ROOT="$SCRIPT_DIR/$PKG_NAME"
 rm -rf "$DEB_ROOT"
-mkdir -p "$DEB_ROOT/opt/coral"
-cp -a "$STAGE/." "$DEB_ROOT/opt/coral/"
+mkdir -p "$DEB_ROOT/opt/kurali"
+cp -a "$STAGE/." "$DEB_ROOT/opt/kurali/"
 
 mkdir -p "$DEB_ROOT/usr/bin"
 cat > "$DEB_ROOT/usr/bin/kurali" << 'LAUNCHER'
 #!/bin/bash
-# Launcher for /opt/coral — same env as AppRun (bundled usr/lib + Electron)
-HERE=/opt/coral
+# Launcher for /opt/kurali — same env as AppRun (bundled usr/lib + Electron)
+HERE=/opt/kurali
 cd "$HERE" || exit 1
 export LD_LIBRARY_PATH="$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
 export ELECTRON_DISABLE_SANDBOX=1
 export ELECTRON_ENABLE_LOGGING=0
+
+# From a tty, return immediately to the shell (like Cursor/Firefox). Optional:
+# KURALI_FOREGROUND=1 keeps the blocking exec behavior for debugging/logging.
+electron_bin=""
 if [ -x "$HERE/node_modules/electron/dist/electron" ]; then
-    exec "$HERE/node_modules/electron/dist/electron" . "$@"
+    electron_bin="$HERE/node_modules/electron/dist/electron"
 elif [ -x "$HERE/node_modules/.bin/electron" ]; then
-    exec "$HERE/node_modules/.bin/electron" . "$@"
+    electron_bin="$HERE/node_modules/.bin/electron"
 fi
-echo "Electron runtime not found under $HERE"
-exit 1
+if [ -z "$electron_bin" ]; then
+    echo "Electron runtime not found under $HERE"
+    exit 1
+fi
+
+if [ -n "${KURALI_FOREGROUND:-}" ]; then
+    exec "$electron_bin" . "$@"
+fi
+
+if [ -t 0 ]; then
+    if command -v setsid >/dev/null 2>&1; then
+        setsid -f "$electron_bin" . "$@" >/dev/null 2>&1 </dev/null
+    else
+        nohup "$electron_bin" . "$@" >/dev/null 2>&1 </dev/null &
+    fi
+    exit 0
+fi
+
+exec "$electron_bin" . "$@"
 LAUNCHER
 chmod 755 "$DEB_ROOT/usr/bin/kurali"
 
@@ -257,7 +278,7 @@ DEPS='libc6 (>= 2.31), libgtk-3-0 | libgtk-4-1, libnotify4, libnss3, libxss1, li
 
 mkdir -p "$DEB_ROOT/DEBIAN"
 cat > "$DEB_ROOT/DEBIAN/control" << CONTROL
-Package: coral
+Package: kurali
 Version: ${APP_VERSION}
 Section: sound
 Priority: optional
@@ -265,7 +286,7 @@ Architecture: ${DEB_ARCH}
 Maintainer: Kurali <https://github.com/eswarib/kurali>
 Depends: ${DEPS}
 Description: Kurali — local speech-to-text (Whisper)
- Same payload as the AppImage: bundled backend, libs, and default model under /opt/coral.
+ Same payload as the AppImage: bundled backend, libs, and default model under /opt/kurali.
 CONTROL
 
 cat > "$DEB_ROOT/DEBIAN/postinst" << 'POSTINST'
@@ -275,18 +296,18 @@ if [ "$1" = "configure" ]; then
   gtk-update-icon-cache -f -t /usr/share/icons/hicolor 2>/dev/null || true
   update-desktop-database /usr/share/applications 2>/dev/null || true
 
-  # Create ~/.coral/models for the installing user(s) and symlink the bundled
+  # Create ~/.kurali/models for the installing user(s) and symlink the bundled
   # models into it. The Electron frontend reads its dropdown from
-  # ~/.coral/models, so the symlinks make every bundled model visible there.
+  # ~/.kurali/models (and ~/.coral/models for legacy installs), so the symlinks make every bundled model visible there.
   # This is best-effort at install time; main.js also seeds on startup as a
   # safety net for users not handled here (e.g. fresh accounts created later).
-  SRC_MODELS_DIR=/opt/coral/usr/share/coral/models
+  SRC_MODELS_DIR=/opt/kurali/usr/share/kurali/models
   link_models_for_user() {
     _u="$1"
     _h=$(getent passwd "$_u" 2>/dev/null | cut -d: -f6)
     [ -n "$_h" ] || return 0
     [ -d "$_h" ] || return 0
-    _t="$_h/.coral/models"
+    _t="$_h/.kurali/models"
     mkdir -p "$_t" 2>/dev/null || return 0
     for _f in "$SRC_MODELS_DIR"/*.bin; do
       [ -f "$_f" ] || continue
@@ -294,7 +315,7 @@ if [ "$1" = "configure" ]; then
       [ -e "$_t/$_n" ] || [ -L "$_t/$_n" ] || ln -s "$_f" "$_t/$_n"
     done
     _g=$(id -gn "$_u" 2>/dev/null || echo "$_u")
-    chown -R "$_u:$_g" "$_h/.coral" 2>/dev/null || true
+    chown -R "$_u:$_g" "$_h/.kurali" 2>/dev/null || true
   }
 
   if [ -d "$SRC_MODELS_DIR" ]; then

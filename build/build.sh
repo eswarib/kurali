@@ -209,10 +209,10 @@ cp -r "$BACKEND_DIR/lib/"* "$APPDIR/usr/lib/"
 bash $BACKEND_DIR/scripts/collect-libs.sh $BACKEND_DIR/bin/kurali $APPDIR/usr/lib
 
 #copy config
-mkdir -p "$APPDIR/usr/share/coral/conf"
-cp "$BACKEND_DIR/conf/config-linux.json" "$APPDIR/usr/share/coral/conf/config.json"
+mkdir -p "$APPDIR/usr/share/kurali/conf"
+cp "$BACKEND_DIR/conf/config-linux.json" "$APPDIR/usr/share/kurali/conf/config.json"
 
-MODEL_DIR="$APPDIR/usr/share/coral/models"
+MODEL_DIR="$APPDIR/usr/share/kurali/models"
 mkdir -p "$MODEL_DIR"
 
 # Copy small model from local models folder, or download from Hugging Face if not present
@@ -235,17 +235,16 @@ fi
 cp "$SCRIPTS_DIR/coral.desktop" "$APPDIR/"
 mkdir -p "$APPDIR/node_modules/electron/dist/resources"
 cp "../logo/coral.png" "$APPDIR/node_modules/electron/dist/resources/coral.png"
-cp "../logo/coral.png" "$APPDIR/usr/share/coral/coral.png"
+cp "../logo/coral.png" "$APPDIR/usr/share/kurali/coral.png"
 cp "../logo/coral.png" "$APPDIR/coral.png"
 # Create directory for desktop icon and copy icon
 mkdir -p "$APPDIR/usr/share/icons/hicolor/256x256/apps/"
-cp "../logo/coral.png" "$APPDIR/usr/share/coral/coral.png"
+cp "../logo/coral.png" "$APPDIR/usr/share/kurali/coral.png"
 
 cp -r "$ELECTRON_DIR/icons" "$APPDIR/"
 mkdir -p "$APPDIR/node_modules/electron/dist/resources"
 cp -r "$ELECTRON_DIR/icons" "$APPDIR/node_modules/electron/dist/resources/"
-cp -r "$ELECTRON_DIR/icons" "$APPDIR/usr/share/coral/"
-cp -r "$ELECTRON_DIR/icons" "$APPDIR/usr/share/coral/"
+cp -r "$ELECTRON_DIR/icons" "$APPDIR/usr/share/kurali/"
 
 cp "$SCRIPTS_DIR/check-and-install-fuse.sh" "$APPDIR/"
 cp "$ELECTRON_DIR/package.json" "$APPDIR/"

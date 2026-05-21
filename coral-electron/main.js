@@ -11,9 +11,12 @@ if (process.platform === 'linux') {
 // Local `electron .` stays verbose. Override: KURALI_VERBOSE=1 (legacy: CORAL_VERBOSE=1) on .deb/AppImage/packaged too.
 const installedDebLayout =
   process.platform === 'linux' &&
-  (__dirname === '/opt/coral' ||
-    __dirname.startsWith('/opt/coral/') ||
-    (typeof process.execPath === 'string' && process.execPath.startsWith('/opt/coral/')));
+  ((__dirname === '/opt/kurali' ||
+    __dirname.startsWith('/opt/kurali/') ||
+    (typeof process.execPath === 'string' && process.execPath.startsWith('/opt/kurali/'))) ||
+    (__dirname === '/opt/coral' ||
+      __dirname.startsWith('/opt/coral/') ||
+      (typeof process.execPath === 'string' && process.execPath.startsWith('/opt/coral/'))));
 if (!process.env.KURALI_VERBOSE && !process.env.CORAL_VERBOSE && (app.isPackaged || process.env.APPIMAGE || installedDebLayout)) {
   app.commandLine.appendSwitch('log-level', '2');
 }
@@ -29,12 +32,12 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const readline = require('readline');
 
-<<<<<<< HEAD
 const USER_CONFIG_DIR = path.join(os.homedir(), '.kurali');
 const USER_CONFIG_PATH = path.join(USER_CONFIG_DIR, 'conf', 'config.json');
+const USER_MODELS_DIR = path.join(USER_CONFIG_DIR, 'models');
 const LEGACY_USER_CONFIG_PATH = path.join(os.homedir(), '.coral', 'conf', 'config.json');
 const LEGACY_USER_CONFIG_FLAT = path.join(os.homedir(), '.coral', 'config.json');
-
+const LEGACY_USER_MODELS_DIR = path.join(os.homedir(), '.coral', 'models');
 function ensureUserConfigDir() {
   const dir = path.dirname(USER_CONFIG_PATH);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -90,12 +93,11 @@ function appendElectronLog(...args) {
 })();
 
 /**
- * Ensure ~/.coral/models exists and contains every bundled .bin model from the
- * system install dir, preferably as symlinks (zero disk overhead) and falling
- * back to file copies when symlinks are unavailable.
+ * Ensure ~/.kurali/models exists (Linux/macOS/AppImage/deb); on Windows use ~/.coral/models
+ * (MSI / legacy layouts). Copies or symlinks every bundled .bin from the system / AppImage tree.
  *
  * Why both:
- *   - Linux: postinst already symlinks for $SUDO_USER. This is the safety net
+ *   - Linux: postinst symlinks into ~/.kurali/models for $SUDO_USER. This seeds
  *     for other users on the box, AppImage runs (no postinst), and dev runs.
  *   - Windows: there's no postinst equivalent, AND fs.symlinkSync requires
  *     admin or Developer Mode. Plain end-users get EPERM, so we copy instead.
@@ -106,11 +108,14 @@ function seedUserModelsDir() {
   try {
     const home = os.homedir();
     if (!home) return;
-    const userDir = path.join(home, '.coral', 'models');
+    const userDir = process.platform === 'win32'
+      ? LEGACY_USER_MODELS_DIR
+      : USER_MODELS_DIR;
 
     // Candidate source dirs, in priority order. First one with .bin files wins.
     // Order matters: more-specific (packaged) paths before dev fallback.
     const candidates = [];
+    try { candidates.push(path.join(app.getAppPath(), 'usr', 'share', 'kurali', 'models')); } catch (_) {}
     try { candidates.push(path.join(app.getAppPath(), 'usr', 'share', 'coral', 'models')); } catch (_) {}
     if (process.platform === 'win32') {
       // Windows installers stage models under <exe>\model (singular) or
@@ -125,13 +130,17 @@ function seedUserModelsDir() {
       try { candidates.push(path.join(app.getAppPath(), 'model')); } catch (_) {}
       try { candidates.push(path.join(app.getAppPath(), 'models')); } catch (_) {}
     } else {
+      candidates.push('/opt/kurali/usr/share/kurali/models');
       candidates.push('/opt/coral/usr/share/coral/models');
+      candidates.push('/usr/share/kurali/models');
       candidates.push('/usr/share/coral/models');
       if (process.env.APPDIR) {
+        candidates.push(path.join(process.env.APPDIR, 'usr', 'share', 'kurali', 'models'));
         candidates.push(path.join(process.env.APPDIR, 'usr', 'share', 'coral', 'models'));
       }
       try {
         const exeDir = path.dirname(process.execPath);
+        candidates.push(path.join(exeDir, '..', 'share', 'kurali', 'models'));
         candidates.push(path.join(exeDir, '..', 'share', 'coral', 'models'));
       } catch (_) {}
     }
@@ -861,7 +870,10 @@ function startBackend() {
             path.join(appImageMountPath, 'usr', 'bin', 'kurali'),
             path.join(appImageMountPath, 'usr', 'bin', 'coral'),
         );
-        const defaultConfigPath = path.join(appImageMountPath, 'usr', 'share', 'coral', 'conf', 'config.json');
+        const defaultConfigPath = firstExistingPath(
+            path.join(appImageMountPath, 'usr', 'share', 'kurali', 'conf', 'config.json'),
+            path.join(appImageMountPath, 'usr', 'share', 'coral', 'conf', 'config.json'),
+        );
         try {
             appendElectronLog('Checking if user config exists:', userConfigPath);
             appendElectronLog('Checking if default config exists:', defaultConfigPath);
@@ -941,7 +953,10 @@ function startBackend() {
             path.join(appRoot, 'usr', 'bin', 'kurali'),
             path.join(appRoot, 'usr', 'bin', 'coral'),
         );
-        const defaultConfigPath = path.join(appRoot, 'usr', 'share', 'coral', 'conf', 'config.json');
+        const defaultConfigPath = firstExistingPath(
+            path.join(appRoot, 'usr', 'share', 'kurali', 'conf', 'config.json'),
+            path.join(appRoot, 'usr', 'share', 'coral', 'conf', 'config.json'),
+        );
         try {
             if (!fs.existsSync(path.dirname(userConfigPath))) fs.mkdirSync(path.dirname(userConfigPath), { recursive: true });
             seedUserConfigFromLegacyOrDefault(defaultConfigPath);
@@ -1384,34 +1399,45 @@ ipcMain.handle('select-model-file', async () => {
   return result.filePaths[0];
 });
 
-// IPC handler: list ggml-*.bin model files in ~/.coral/models/.
-// That directory is populated by the .deb postinst (symlinks into the bundled
-// /opt/coral/usr/share/coral/models) and by seedUserModelsDir() at startup.
-// Keeping this single-source-of-truth keeps the UI predictable: whatever the
-// user sees in ~/.coral/models is exactly what the dropdown offers.
+// IPC handler: list ggml-*.bin model files in ~/.kurali/models/ (Linux) or ~/.coral/models (Windows),
+// plus legacy ~/.coral/models on non-Windows. Populated by the .deb postinst (symlinks into
+// /opt/kurali/usr/share/kurali/models), AppImage/AppDir seedUserModelsDir(), and Windows MSI copy.
 ipcMain.handle('list-installed-models', () => {
   const home = os.homedir();
   if (!home) return [];
-  const dir = path.join(home, '.coral', 'models');
-  let entries;
-  try {
-    if (!fs.existsSync(dir)) return [];
-    entries = fs.readdirSync(dir);
-  } catch (_) { return []; }
 
-  const results = [];
-  for (const name of entries) {
-    if (!/^ggml-.*\.bin$/i.test(name)) continue;
-    // Skip the Silero VAD model — it's not a transcription model.
-    if (/silero/i.test(name)) continue;
-    const full = path.join(dir, name);
-    try {
-      // statSync follows symlinks, so size reflects the real model file.
-      const st = fs.statSync(full);
-      if (!st.isFile() || st.size === 0) continue;
-      results.push({ filename: name, dir, fullPath: full, size: st.size });
-    } catch (_) { /* dangling symlink or unreadable — skip */ }
+  const dirs = [];
+  if (process.platform !== 'win32') {
+    dirs.push(USER_MODELS_DIR);
+    if (LEGACY_USER_MODELS_DIR !== USER_MODELS_DIR) dirs.push(LEGACY_USER_MODELS_DIR);
+  } else {
+    dirs.push(LEGACY_USER_MODELS_DIR);
   }
+
+  /** @type {Map<string, {filename: string, dir: string, fullPath: string, size: number}>} */
+  const byName = new Map();
+
+  for (const dir of dirs) {
+    let entries = [];
+    try {
+      if (!fs.existsSync(dir)) continue;
+      entries = fs.readdirSync(dir);
+    } catch (_) { continue; }
+
+    for (const name of entries) {
+      if (!/^ggml-.*\.bin$/i.test(name)) continue;
+      if (/silero/i.test(name)) continue;
+      if (byName.has(name)) continue;
+      const full = path.join(dir, name);
+      try {
+        const st = fs.statSync(full);
+        if (!st.isFile() || st.size === 0) continue;
+        byName.set(name, { filename: name, dir, fullPath: full, size: st.size });
+      } catch (_) { /* dangling symlink or unreadable */ }
+    }
+  }
+
+  const results = [...byName.values()];
   results.sort((a, b) => a.filename.localeCompare(b.filename));
   return results;
 });
